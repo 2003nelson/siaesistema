@@ -3,54 +3,54 @@ import React, { useState, useEffect } from 'react';
 
 import DashboardControls from '../components/Dashboard/DashboardControls.jsx'; 
 import AlertsTable from '../components/Alerts/AlertsTable.jsx';
+// *** ¡FALTABA ESTE IMPORT! ***
+import JustifyModal from '../components/Alerts/JustifyModal.jsx'; 
 
-// ... (MOCK_ALERTS_DATA se queda exactamente igual que antes) ...
+// --- NUEVA ESTRUCTURA DE DATOS DEFAULT (MOCK DATA) ---
 const MOCK_ALERTS_DATA = {
   general: [
-    { id: 1, nombre: 'Sofía Martínez', grupo: '9A', faltas: 3, estado: 'No Justificado', observaciones: '' },
-    { id: 2, nombre: 'Alejandro Pérez', grupo: '10B', faltas: 1, estado: 'Justificado', observaciones: 'Cita médica' },
-    { id: 3, nombre: 'Valentina Soto', grupo: '9A', faltas: 5, estado: 'No Justificado', observaciones: 'Contactar a tutor' },
-    { id: 4, nombre: 'Miguel Ángel Rico', grupo: '11C', faltas: 2, estado: 'Justificado', observaciones: '' },
-    { id: 5, nombre: 'Lucía Fernández', grupo: '10B', faltas: 1, estado: 'Justificado', observaciones: '' },
-    { id: 6, nombre: 'Javier Gómez', grupo: '11C', faltas: 4, estado: 'No Justificado', observaciones: '' },
+    { id: 3, nombre: 'Valentina Soto', grupo: '9A', unjustifiedFaltas: 5, unjustifiedDates: ['2025-10-15', '2025-10-16', '2025-10-18', '2025-10-19', '2025-10-21'] },
+    { id: 6, nombre: 'Javier Gómez', grupo: '11C', unjustifiedFaltas: 4, unjustifiedDates: ['2025-10-10', '2025-10-11', '2025-10-17', '2025-10-20'] },
+    { id: 1, nombre: 'Sofía Martínez', grupo: '9A', unjustifiedFaltas: 3, unjustifiedDates: ['2025-10-05', '2025-10-06', '2025-10-22'] },
   ],
   matutino: [
-    { id: 1, nombre: 'Sofía Martínez', grupo: '9A', faltas: 3, estado: 'No Justificado', observaciones: '' },
-    { id: 3, nombre: 'Valentina Soto', grupo: '9A', faltas: 5, estado: 'No Justificado', observaciones: 'Contactar a tutor' },
+    { id: 3, nombre: 'Valentina Soto', grupo: '9A', unjustifiedFaltas: 5, unjustifiedDates: ['2025-10-15', '2025-10-16', '2025-10-18', '2025-10-19', '2025-10-21'] },
+    { id: 1, nombre: 'Sofía Martínez', grupo: '9A', unjustifiedFaltas: 3, unjustifiedDates: ['2025-10-05', '2025-10-06', '2025-10-22'] },
   ],
   vespertino: [
-    { id: 2, nombre: 'Alejandro Pérez', grupo: '10B', faltas: 1, estado: 'Justificado', observaciones: 'Cita médica' },
-    { id: 4, nombre: 'Miguel Ángel Rico', grupo: '11C', faltas: 2, estado: 'Justificado', observaciones: '' },
+     { id: 6, nombre: 'Javier Gómez', grupo: '11C', unjustifiedFaltas: 4, unjustifiedDates: ['2025-10-10', '2025-10-11', '2025-10-17', '2025-10-20'] },
   ],
 };
+// --- FIN DE DATOS DEFAULT ---
+
 
 const AlertasPage = () => {
   const [activeMode, setActiveMode] = useState('general');
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState(''); 
+  const [allAlertsList, setAllAlertsList] = useState([]); 
+  const [filteredAlertsList, setFilteredAlertsList] = useState([]); 
   
-  // --- NUEVOS ESTADOS PARA BÚSQUEDA ---
-  const [searchQuery, setSearchQuery] = useState(''); // Estado para el texto de búsqueda
-  const [allAlertsList, setAllAlertsList] = useState([]); // Lista completa de la API
-  const [filteredAlertsList, setFilteredAlertsList] = useState([]); // Lista filtrada para mostrar
+  // --- ¡FALTABAN ESTOS ESTADOS! ---
+  const [expandedHistoryId, setExpandedHistoryId] = useState(null); 
+  const [modalState, setModalState] = useState({ isOpen: false, studentId: null, studentName: '' }); 
 
-  // *** INTERRUPTOR #1: Cargar datos del TURNO (General, Matutino, etc.) ***
+  // *** INTERRUPTOR #1: Cargar datos del TURNO ***
   useEffect(() => {
     setIsLoading(true);
     const fetchData = async () => {
       console.log(`Buscando alertas para: ${activeMode}`);
       try {
-        // --- TODO: INTERRUPTOR DE API (GET) ---
-        // En un futuro, tu API podría recibir el 'searchQuery' aquí:
-        // const response = await fetch(`.../alertas?modo=${activeMode}&search=${searchQuery}`);
-        // const data = await response.json();
-        
-        // Usamos los DATOS DEFAULT por ahora
-        const data = MOCK_ALERTS_DATA[activeMode];
+        // --- TODO: API GET /alertas?modo=... ---
+        const data = MOCK_ALERTS_DATA[activeMode] || []; 
         // ----------------------------------------
         
-        setAllAlertsList(data); // Guardamos la lista completa
-        setFilteredAlertsList(data); // Inicialmente, la lista filtrada es la misma
-        setSearchQuery(''); // Limpiamos la búsqueda al cambiar de modo
+        setAllAlertsList(data); 
+        setFilteredAlertsList(data); 
+        setSearchQuery(''); 
+        // *** ¡FALTABA ESTO! ***
+        setExpandedHistoryId(null); 
+        setModalState({ isOpen: false, studentId: null, studentName: '' }); 
       } catch (error) {
         console.error("Error al obtener alertas:", error);
       } finally {
@@ -61,49 +61,46 @@ const AlertasPage = () => {
     const timer = setTimeout(() => fetchData(), 300);
     return () => clearTimeout(timer);
     
-  }, [activeMode]); // Se ejecuta solo cuando 'activeMode' cambia
+  }, [activeMode]); 
 
-  // *** INTERRUPTOR #2: Filtrar la lista localmente (Lógica Mock) ***
+  // *** INTERRUPTOR #2: Filtrar localmente por búsqueda ***
   useEffect(() => {
-    // Esta lógica filtra la lista 'allAlertsList' cada vez que 'searchQuery' cambia
-    // y guarda el resultado en 'filteredAlertsList'.
     const filtered = allAlertsList.filter(alert =>
       alert.nombre.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setFilteredAlertsList(filtered);
-    
-    // --- TODO: INTERRUPTOR DE API ---
-    // Cuando conectes tu API, borrarías este 'useEffect'
-    // y añadirías 'searchQuery' como dependencia en el 'useEffect' de arriba
-    // (posiblemente con un "debounce" para no llamar a la API en cada tecla).
-    // ---
-  }, [searchQuery, allAlertsList]); // Se ejecuta si la búsqueda o la lista cambian
+    // --- TODO: API ---
+  }, [searchQuery, allAlertsList]);
 
-
-  // ... (handleToggleStatus y handleSaveObservation se quedan igual) ...
-  const handleToggleStatus = (alertId, currentStatus) => {
-    const newStatus = currentStatus === 'Justificado' ? 'No Justificado' : 'Justificado';
-    console.log(`API Call: Cambiar estado de ${alertId} a ${newStatus}`);
-    
-    // Actualizamos ambas listas para mantener consistencia
-    const updateList = (list) => 
-      list.map(alert =>
-        alert.id === alertId ? { ...alert, estado: newStatus } : alert
-      );
-    setAllAlertsList(updateList);
-    setFilteredAlertsList(updateList);
+  // --- ¡FALTABAN ESTAS FUNCIONES! ---
+  const toggleHistory = (studentId) => {
+    setExpandedHistoryId(prevId => (prevId === studentId ? null : studentId));
   };
 
-  const handleSaveObservation = (alertId, observationText) => {
-    console.log(`API Call: Guardar observación de ${alertId}: "${observationText}"`);
-    
-    const updateList = (list) => 
-      list.map(alert =>
-        alert.id === alertId ? { ...alert, observaciones: observationText } : alert
-      );
-    setAllAlertsList(updateList);
-    setFilteredAlertsList(updateList);
+  const openJustifyModal = (studentId, studentName) => {
+    setModalState({ isOpen: true, studentId, studentName });
   };
+
+  const closeJustifyModal = () => {
+    setModalState({ isOpen: false, studentId: null, studentName: '' });
+  };
+
+  // *** INTERRUPTOR #3: Enviar justificación a la API ***
+  const submitJustification = async (reason) => {
+    const studentId = modalState.studentId;
+    console.log(`API Call: Justificar faltas de ${studentId} con motivo: "${reason}"`);
+    
+    // --- TODO: AQUÍ VA TU CÓDIGO DE API (POST/PATCH /justificar) ---
+    await new Promise(resolve => setTimeout(resolve, 500));
+    // --------------------------------------------------
+
+    // Eliminamos al alumno de las listas locales
+    setAllAlertsList(prevList => prevList.filter(alert => alert.id !== studentId));
+    // filteredAlertsList se actualiza en el useEffect #2
+    
+    closeJustifyModal(); 
+  };
+  // --- FIN NUEVAS FUNCIONES ---
 
 
   return (
@@ -121,14 +118,24 @@ const AlertasPage = () => {
       {isLoading ? (
         <div className="loading-message">Cargando alertas...</div>
       ) : (
+        // *** ¡FALTABAN ESTOS PROPS! ***
         <AlertsTable 
-          alerts={filteredAlertsList} // Pasamos la lista FILTRADA
-          searchQuery={searchQuery} // Pasamos el valor de la búsqueda
-          onSearchChange={setSearchQuery} // Pasamos el "interruptor" para cambiar el valor
-          onToggleStatus={handleToggleStatus}
-          onSaveObservation={handleSaveObservation}
+          alerts={filteredAlertsList} 
+          searchQuery={searchQuery} 
+          onSearchChange={setSearchQuery} 
+          onOpenJustifyModal={openJustifyModal} 
+          onToggleHistory={toggleHistory}       
+          expandedHistoryId={expandedHistoryId} 
         />
       )}
+
+      {/* *** ¡FALTABA ESTE COMPONENTE! *** */}
+      <JustifyModal 
+        isOpen={modalState.isOpen}
+        onClose={closeJustifyModal}
+        studentName={modalState.studentName}
+        onSubmit={submitJustification} 
+      />
     </main>
   );
 };

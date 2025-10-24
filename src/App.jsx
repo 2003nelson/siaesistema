@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
-// Importamos nuestros componentes de Layout y Auth
+// Importamos componentes de Layout y Auth
 import MainLayout from './components/Layout/MainLayout.jsx';
 import ProtectedRoute from './components/Auth/ProtectedRoute.jsx';
 

@@ -1,56 +1,56 @@
 // src/components/Alerts/AlertRow.jsx
-import React, { useState } from 'react';
+import React from 'react'; // <-- ¡ESTA LÍNEA FALTABA!
+import AbsenceHistory from './AbsenceHistory.jsx'; 
+import { History } from 'lucide-react'; 
 
-// 'alert' son los datos de la fila
-// 'onToggleStatus' y 'onSaveObservation' son las funciones "interruptor"
-const AlertRow = ({ alert, onToggleStatus, onSaveObservation }) => {
-  // Estado local para el texto de observación
-  const [observationText, setObservationText] = useState(alert.observaciones);
-  const [isSaving, setIsSaving] = useState(false);
+const AlertRow = ({ 
+  alert, 
+  onOpenJustifyModal, 
+  onToggleHistory, 
+  isHistoryExpanded 
+}) => {
 
-  // Clase CSS para el botón de estado
-  const statusClass = alert.estado === 'Justificado'
-    ? 'status-btn justificado'
-    : 'status-btn no-justificado';
-
-  // Manejador del botón Guardar
-  const handleSave = () => {
-    // Simula el guardado
-    setIsSaving(true);
-    // Llama a la función "padre" que eventualmente llamará a la API
-    onSaveObservation(alert.id, observationText);
-    // Simula fin de guardado
-    setTimeout(() => setIsSaving(false), 500); 
-  };
+  let rowClass = 'alert-row';
+  if (alert.unjustifiedFaltas >= 5) {
+    rowClass += ' alert-row--danger'; 
+  } else if (alert.unjustifiedFaltas >= 3) {
+    rowClass += ' alert-row--warning'; 
+  }
 
   return (
-    <div className="alert-row">
-      <div className="alert-cell" data-label="Nombre">{alert.nombre}</div>
-      <div className="alert-cell" data-label="Grupo">{alert.grupo}</div>
-      <div className="alert-cell" data-label="Faltas">{alert.faltas}</div>
-      <div className="alert-cell" data-label="Estado">
-        <button 
-          className={statusClass}
-          onClick={() => onToggleStatus(alert.id, alert.estado)}
-        >
-          {alert.estado}
-        </button>
+    <>
+      <div className={rowClass}>
+        <div className="alert-cell name-cell" data-label="Nombre">
+          <span>{alert.nombre}</span>
+          <button 
+            className="history-btn" 
+            onClick={() => onToggleHistory(alert.id)}
+            title="Ver/Ocultar Historial de Faltas"
+          >
+            <History size={18} />
+          </button>
+        </div>
+        
+        <div className="alert-cell" data-label="Grupo">{alert.grupo}</div>
+        
+        <div className="alert-cell faltas-cell" data-label="Faltas">{alert.unjustifiedFaltas}</div> 
+        
+        <div className="alert-cell" data-label="Estado">
+          <button 
+            className="status-btn justify-action" 
+            onClick={() => onOpenJustifyModal(alert.id, alert.nombre)}
+          >
+            Justificar
+          </button>
+        </div>
       </div>
-      <div className="alert-cell observations-cell" data-label="Observaciones">
-        <textarea
-          value={observationText}
-          onChange={(e) => setObservationText(e.target.value)}
-          placeholder="Añadir observación..."
-        />
-        <button 
-          className="btn-save" 
-          onClick={handleSave}
-          disabled={isSaving}
-        >
-          {isSaving ? 'Guardando...' : 'Guardar'}
-        </button>
-      </div>
-    </div>
+      
+      {isHistoryExpanded && (
+        <div className="history-details-row">
+          <AbsenceHistory dates={alert.unjustifiedDates} />
+        </div>
+      )}
+    </>
   );
 };
 

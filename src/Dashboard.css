@@ -963,3 +963,245 @@ input:checked + .slider:before {
   color: #6b7280; /* text-gray-500 */
   font-weight: 500;
 }
+
+/* src/Dashboard.css */
+/* ... (todo el CSS anterior) ... */
+
+/* 15. ESTILOS ACTUALIZADOS PARA TABLA DE ALERTAS Y NUEVOS COMPONENTES */
+
+/* Ajustamos las columnas de la cabecera y fila (quitamos observaciones) */
+.alert-header--reduced,
+.alert-row {
+  /* Nombre(3fr), Grupo(1fr), Faltas(1fr), Acción(1fr) */
+  grid-template-columns: 3fr 1fr 1fr 1fr; 
+}
+
+/* Color de fondo para filas */
+.alert-row--warning {
+  background-color: #fef9c3; /* yellow-100 */
+}
+.alert-row--danger {
+  background-color: #fee2e2; /* red-100 */
+}
+/* Hover sutil para las filas coloreadas */
+.alert-row--warning:hover,
+.alert-row--danger:hover {
+  background-color: #fef08a; /* yellow-200 */
+}
+.alert-row--danger:hover {
+  background-color: #fecaca; /* red-200 */
+}
+
+/* Celda de nombre ahora contiene botón de historial */
+.name-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Empuja el botón a la derecha */
+}
+
+.history-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  margin-left: 12px; /* Espacio a la izquierda */
+  cursor: pointer;
+  color: #9ca3af; /* gray-400 */
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  display: inline-flex; /* Para centrar el icono */
+  align-items: center;
+  justify-content: center;
+}
+.history-btn:hover {
+  color: var(--siae-primary-blue);
+  background-color: #e0e7ff; /* indigo-100 */
+}
+
+/* Celda de faltas más destacada */
+.faltas-cell {
+  font-weight: 700;
+  font-size: 1rem;
+}
+.alert-row--warning .faltas-cell {
+  color: #ca8a04; /* yellow-600 */
+}
+.alert-row--danger .faltas-cell {
+  color: #dc2626; /* red-600 */
+}
+
+
+/* Botón "Justificar" */
+.status-btn.justify-action {
+  background-color: var(--siae-primary-blue);
+  color: white;
+  padding: 6px 16px;
+}
+.status-btn.justify-action:hover {
+  background-color: var(--siae-dark-blue);
+}
+
+/* Fila desplegable para el historial */
+.history-details-row {
+  /* Ocupa todas las columnas del grid padre (la tabla) */
+  grid-column: 1 / -1; 
+  background-color: #f9fafb; /* bg-gray-50 */
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb; /* Separador */
+}
+
+/* Estilos del componente AbsenceHistory */
+.absence-history {
+  font-size: 0.875rem;
+}
+.absence-history.empty {
+  color: #6b7280;
+  font-style: italic;
+}
+.absence-history h4 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--siae-dark-blue);
+  text-transform: uppercase;
+}
+.absence-history ul {
+  list-style: disc;
+  margin: 0;
+  padding-left: 20px;
+  color: #4b5563;
+}
+.absence-history li {
+  margin-bottom: 4px;
+}
+
+/* Estilos para el Modal de Justificación */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5); /* Fondo semitransparente */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000; /* Asegura que esté por encima de todo */
+}
+
+.modal-content {
+  background-color: white;
+  padding: 24px 32px;
+  border-radius: 0.75rem; /* rounded-xl */
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 500px; /* Ancho máximo del modal */
+}
+
+.modal-title {
+  font-size: 1.5rem; /* text-2xl */
+  font-weight: 700;
+  color: var(--siae-dark);
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.modal-student-name {
+  font-size: 1rem;
+  color: #6b7280;
+  margin-bottom: 20px;
+}
+.modal-student-name strong {
+  color: var(--siae-dark);
+}
+
+.modal-input-group {
+  margin-bottom: 20px;
+}
+.modal-input-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--siae-dark);
+  margin-bottom: 8px;
+}
+.modal-input-group textarea {
+  width: 100%;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  padding: 10px;
+  resize: vertical;
+}
+.modal-input-group textarea:focus {
+  outline: none;
+  border-color: var(--siae-primary-blue);
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end; /* Botones a la derecha */
+  gap: 12px; /* Espacio entre botones */
+  margin-top: 24px;
+}
+
+.modal-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-btn.cancel {
+  background-color: #f3f4f6; /* gray-100 */
+  color: var(--siae-dark);
+  border: 1px solid #d1d5db; /* gray-300 */
+}
+.modal-btn.cancel:hover {
+  background-color: #e5e7eb; /* gray-200 */
+}
+
+.modal-btn.save {
+  background-color: var(--siae-primary-blue);
+  color: white;
+}
+.modal-btn.save:hover {
+  background-color: var(--siae-dark-blue);
+}
+.modal-btn:disabled {
+  background-color: #9ca3af; /* gray-400 */
+  cursor: not-allowed;
+}
+
+/* Ajustes responsivos para tabla reducida */
+@media (max-width: 768px) {
+  .alert-header--reduced {
+    display: none; 
+  }
+  .alert-row {
+    /* Mantenemos las 4 'áreas' pero ahora como filas */
+    grid-template-columns: 1fr; 
+  }
+  .alert-cell {
+    /* Forzamos que la etiqueta y el valor estén en la misma línea */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .name-cell {
+    flex-direction: column; /* Nombre arriba, botón abajo */
+    align-items: flex-start; /* Alinea a la izquierda */
+  }
+  .history-btn {
+    margin-top: 8px;
+    margin-left: 0;
+  }
+  .history-details-row {
+     padding: 16px; /* Menos padding en móvil */
+  }
+}
