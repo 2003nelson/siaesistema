@@ -25,4 +25,5 @@ const StudentList = ({ title, students }) => {
   );
 };
 
+
 export default StudentList;

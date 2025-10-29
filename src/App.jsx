@@ -10,63 +10,70 @@ import ProtectedRoute from './components/Auth/ProtectedRoute.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import LoadingPage from './pages/LoadingPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
-import AlertasPage from './pages/AlertasPage.jsx'; 
-// AÑADE ESTA LÍNEA QUE FALTABA
-import GestionUsuariosPage from './pages/GestionUsuariosPage.jsx'; 
+import AlertasPage from './pages/AlertasPage.jsx';
+import GestionUsuariosPage from './pages/GestionUsuariosPage.jsx';
+// --- AÑADIDA LA IMPORTACIÓN QUE FALTABA ---
+import GestionEstudiantesPage from './pages/GestionEstudiantesPage.jsx';
+// ---------------------------------------
 
 // Importamos nuestro CSS
 import './Dashboard.css';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  const handleLogin = async (username, password) => {
-    console.log(`API Call: Intentando loguear con ${username} / ${password}`);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // --- Definición de handleLogout ---
+    // (Necesaria para pasarla a MainLayout)
+    const handleLogout = () => {
+        console.log('Cerrando sesión...');
+        setIsLoggedIn(false);
+        // localStorage.removeItem('token'); // Si usaras tokens
+    };
+    // ---------------------------------
 
-    // --- MOCK LOGIN ---
-    if (username === 'director' && password === '123') {
-      setIsLoggedIn(true);
-      return true;
-    } else {
-      return false;
-    }
-  };
+    const handleLogin = async (username, password) => {
+        console.log(`API Call: Intentando loguear con ${username} / ${password}`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-  return (
-    <div className="app-container">
-      <Routes>
-        {/* Ruta 1: Login (Pública) */}
-        <Route 
-          path="/login" 
-          element={<LoginPage onLogin={handleLogin} />} 
-        />
-        
-        {/* Ruta 2: Carga (Pública) */}
-        <Route path="/loading" element={<LoadingPage />} />
+        // --- MOCK LOGIN ---
+        if (username === 'director' && password === '123') {
+            setIsLoggedIn(true);
+            return true;
+        } else {
+            return false;
+        }
+    };
 
-        {/* Ruta 3: Rutas Protegidas (Privadas) */}
-        <Route element={<ProtectedRoute isLoggedIn={isLoggedIn} />}>
-          <Route element={<MainLayout />}>
-            
-            {/* ESTA ES LA RUTA QUE CAMBIASTE POR ERROR */}
-            <Route path="/" element={<DashboardPage />} /> 
-            
-            <Route path="/alertas" element={<AlertasPage />} />
-            
-            {/* ESTA ES LA RUTA CORRECTA PARA USUARIOS */}
-            <Route path="/usuarios" element={<GestionUsuariosPage />} />
-            
-            <Route path="/estudiantes" element={<div>Página de Estudiantes</div>} />
-          </Route>
-        </Route>
+    return (
+        <div className="app-container">
+            <Routes>
+                {/* Ruta 1: Login (Pública) */}
+                <Route
+                    path="/login"
+                    element={<LoginPage onLogin={handleLogin} />}
+                />
 
-        {/* Ruta 4: Redirección por defecto */}
-        <Route path="*" element={<Navigate to={isLoggedIn ? '/' : '/login'} replace />} />
+                {/* Ruta 2: Carga (Pública) */}
+                <Route path="/loading" element={<LoadingPage />} />
 
-      </Routes>
-    </div>
-  );
+                {/* Ruta 3: Rutas Protegidas (Privadas) */}
+                <Route element={<ProtectedRoute isLoggedIn={isLoggedIn} />}>
+                    {/* Pasamos onLogout a MainLayout */}
+                    <Route element={<MainLayout onLogout={handleLogout} />}>
+                        <Route path="/" element={<DashboardPage />} />
+                        <Route path="/alertas" element={<AlertasPage />} />
+                        <Route path="/usuarios" element={<GestionUsuariosPage />} />
+                        {/* Ruta actualizada para usar el componente importado */}
+                        <Route path="/estudiantes" element={<GestionEstudiantesPage />} />
+                    </Route>
+                </Route>
+
+                {/* Ruta 4: Redirección por defecto */}
+                <Route path="*" element={<Navigate to={isLoggedIn ? '/' : '/login'} replace />} />
+
+            </Routes>
+        </div>
+    );
 }
 
 export default App;

@@ -1,162 +1,219 @@
-// src/pages/AlertasPage.jsx
 import React, { useState, useEffect } from 'react';
+import ConfirmationModal from './ConfirmationModal';
+import JustificationHistoryModal from './JustificationHistoryModal';
+import AlertStudentCard from './AlertStudentCard';
+import TurnToggle from './TurnToggle';
+import '../../styles/AlertasPage.css';
 
-import DashboardControls from '../components/Dashboard/DashboardControls.jsx'; 
-import AlertsTable from '../components/Alerts/AlertsTable.jsx';
-import JustifyModal from '../components/Alerts/JustifyModal.jsx'; // Importa el modal
-
-// --- NUEVA ESTRUCTURA DE DATOS DEFAULT (MOCK DATA) ---
+// Mock inicial de alertas
 const MOCK_ALERTS_DATA = {
-  general: [
-    { id: 3, nombre: 'Valentina Soto', grupo: '109', unjustifiedFaltas: 5, unjustifiedDates: ['2025-10-15', '2025-10-16', '2025-10-18', '2025-10-19', '2025-10-21'] },
-    { id: 6, nombre: 'Javier Gómez', grupo: '503', unjustifiedFaltas: 4, unjustifiedDates: ['2025-10-10', '2025-10-11', '2025-10-17', '2025-10-20'] },
-    { id: 1, nombre: 'Sofía Martínez', grupo: '103', unjustifiedFaltas: 3, unjustifiedDates: ['2025-10-05', '2025-10-06', '2025-10-22'] },
-    { id: 7, nombre: 'Carlos Ruiz', grupo: '301', unjustifiedFaltas: 2, unjustifiedDates: ['2025-10-20', '2025-10-23'] },
-    { id: 8, nombre: 'Ana Torres', grupo: '107', unjustifiedFaltas: 1, unjustifiedDates: ['2025-10-24'] },
+  morning: [
+    {
+      id: 1,
+      studentName: 'Juan Pérez',
+      studentId: 1,
+      grade: '3°A',
+      photoUrl: '/assets/img/student1.jpg',
+      justifiedAbsenceDates: [],
+      justificationReason: '',
+      justificationStatus: 'pending',
+      justificationDocument: null
+    },
+    {
+      id: 2,
+      studentName: 'María López',
+      studentId: 2,
+      grade: '3°A',
+      photoUrl: '/assets/img/student2.jpg',
+      justifiedAbsenceDates: [],
+      justificationReason: '',
+      justificationStatus: 'pending',
+      justificationDocument: null
+    }
   ],
-  matutino: [
-    { id: 3, nombre: 'Valentina Soto', grupo: '109', unjustifiedFaltas: 5, unjustifiedDates: ['2025-10-15', '2025-10-16', '2025-10-18', '2025-10-19', '2025-10-21'] },
-    { id: 1, nombre: 'Sofía Martínez', grupo: '103', unjustifiedFaltas: 3, unjustifiedDates: ['2025-10-05', '2025-10-06', '2025-10-22'] },
-  ],
-  vespertino: [
-     { id: 6, nombre: 'Javier Gómez', grupo: '503', unjustifiedFaltas: 4, unjustifiedDates: ['2025-10-10', '2025-10-11', '2025-10-17', '2025-10-20'] },
-  ],
+  afternoon: [
+    {
+      id: 3,
+      studentName: 'Valentina Soto',
+      studentId: 3,
+      grade: '2°B',
+      photoUrl: '/assets/img/student3.jpg',
+      justifiedAbsenceDates: [],
+      justificationReason: '',
+      justificationStatus: 'pending',
+      justificationDocument: null
+    }
+  ]
 };
-// --- FIN DE DATOS DEFAULT ---
 
+// Mock de historial inicial (para pruebas)
+const MOCK_HISTORY_DATA = [
+  {
+    id: 'hist-001',
+    studentId: 3,
+    studentName: 'Valentina Soto',
+    reason: 'Fiebre alta',
+    justifiedAbsenceDates: ['2025-10-15', '2025-10-16'],
+    submissionDate: '2025-10-17T10:00:00.000Z'
+  }
+];
 
 const AlertasPage = () => {
-  const [activeMode, setActiveMode] = useState('general');
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState(''); 
-  const [allAlertsList, setAllAlertsList] = useState([]); 
-  const [filteredAlertsList, setFilteredAlertsList] = useState([]); 
-  
-  // --- NUEVOS ESTADOS ---
-  const [expandedHistoryId, setExpandedHistoryId] = useState(null); // ID del alumno cuyo historial está expandido
-  const [modalState, setModalState] = useState({ isOpen: false, studentId: null, studentName: '' }); // Estado para el modal
+  const [activeMode, setActiveMode] = useState('morning');
+  const [studentsData, setStudentsData] = useState(MOCK_ALERTS_DATA.morning);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [justificationHistory, setJustificationHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem('justificationHistory');
+      return saved ? JSON.parse(saved) : MOCK_HISTORY_DATA;
+    } catch (e) {
+      console.error('Error reading justificationHistory from localStorage', e);
+      return MOCK_HISTORY_DATA;
+    }
+  });
+  const [selectedHistoryMonth, setSelectedHistoryMonth] = useState('all');
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
 
-  // *** INTERRUPTOR #1: Cargar datos del TURNO ***
+  // Actualizar alumnos al cambiar turno
   useEffect(() => {
-    setIsLoading(true);
-    const fetchData = async () => {
-      console.log(`Buscando alertas para: ${activeMode}`);
-      try {
-        // --- TODO: API GET /alertas?modo=... ---
-        // Tu API debería devolver SOLO alumnos con unjustifiedFaltas > 0
-        // y ya ORDENADOS por unjustifiedFaltas descendente.
-        // También debería incluir unjustifiedDates.
-        const data = MOCK_ALERTS_DATA[activeMode] || []; // Usa [] si no hay datos para ese modo
-        // ----------------------------------------
-        
-        // La data ya viene filtrada y ordenada (según el TODO anterior)
-        setAllAlertsList(data); 
-        setFilteredAlertsList(data); 
-        setSearchQuery(''); 
-        setExpandedHistoryId(null); // Cierra historial al cambiar modo
-        setModalState({ isOpen: false, studentId: null, studentName: '' }); // Cierra modal
-      } catch (error) {
-        console.error("Error al obtener alertas:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    const timer = setTimeout(() => fetchData(), 300);
-    return () => clearTimeout(timer);
-    
-  }, [activeMode]); 
+    console.log(`Cargando alertas para el turno: ${activeMode}`);
+    setStudentsData(MOCK_ALERTS_DATA[activeMode]);
+  }, [activeMode]);
 
-  // *** INTERRUPTOR #2: Filtrar localmente por búsqueda ***
+  // Guardar historial en localStorage
   useEffect(() => {
-    const filtered = allAlertsList.filter(alert =>
-      alert.nombre.toLowerCase().includes(searchQuery.toLowerCase())
+    try {
+      localStorage.setItem('justificationHistory', JSON.stringify(justificationHistory));
+    } catch (e) {
+      console.error('Error saving justificationHistory to localStorage', e);
+    }
+  }, [justificationHistory]);
+
+  const handleModeToggle = (mode) => setActiveMode(mode);
+
+  const handleSelectStudent = (student) => {
+    setSelectedStudent(student);
+  };
+
+  const handleCloseStudentCard = () => {
+    setSelectedStudent(null);
+  };
+
+  const submitJustification = (studentId, reason, dates) => {
+    console.log(`Enviando justificación para ID ${studentId}: ${reason}`);
+    const updatedStudents = studentsData.map((student) =>
+      student.studentId === studentId
+        ? {
+            ...student,
+            justificationStatus: 'justified',
+            justificationReason: reason,
+            justifiedAbsenceDates: dates
+          }
+        : student
     );
-    // Mantenemos el orden original (por faltas)
-    setFilteredAlertsList(filtered);
-    
-    // --- TODO: API ---
-    // Si la API hace la búsqueda, este useEffect desaparece y
-    // searchQuery se añade como dependencia en el useEffect #1.
-    // ---
-  }, [searchQuery, allAlertsList]);
+    setStudentsData(updatedStudents);
 
-  // --- NUEVAS FUNCIONES ---
-
-  // Función para abrir/cerrar el historial
-  const toggleHistory = (studentId) => {
-    setExpandedHistoryId(prevId => (prevId === studentId ? null : studentId));
+    const studentData = updatedStudents.find((s) => s.studentId === studentId);
+    const newEntry = {
+      id: Date.now(),
+      studentId: studentData.studentId,
+      studentName: studentData.studentName,
+      reason,
+      justifiedAbsenceDates: dates,
+      submissionDate: new Date().toISOString()
+    };
+    setJustificationHistory((prev) => [...prev, newEntry]);
+    setSelectedStudent(null);
   };
 
-  // Función para abrir el modal de justificación
-  const openJustifyModal = (studentId, studentName) => {
-    setModalState({ isOpen: true, studentId, studentName });
+  const handleViewHistory = () => setIsHistoryModalOpen(true);
+  const closeHistoryModal = () => setIsHistoryModalOpen(false);
+  const openClearConfirm = () => setIsConfirmClearOpen(true);
+  const closeClearConfirm = () => setIsConfirmClearOpen(false);
+
+  const handleClearHistory = async () => {
+    console.log(`Borrando historial para el modo: ${activeMode}`);
+    await new Promise((resolve) => setTimeout(resolve, 500)); // Simula API
+    setJustificationHistory([]);
+    try {
+      localStorage.removeItem('justificationHistory');
+    } catch (e) {
+      console.error(e);
+    }
+    closeClearConfirm();
   };
 
-  // Función para cerrar el modal
-  const closeJustifyModal = () => {
-    setModalState({ isOpen: false, studentId: null, studentName: '' });
-  };
+  // Filtrar historial por mes
+  const filteredHistory = justificationHistory.filter((entry) => {
+    if (!entry) return false;
+    if (!entry.submissionDate || typeof entry.submissionDate !== 'string') {
+      return selectedHistoryMonth === 'all';
+    }
 
-  // *** INTERRUPTOR #3: Enviar justificación a la API ***
-  const submitJustification = async (reason) => {
-    const studentId = modalState.studentId;
-    console.log(`API Call: Justificar faltas de ${studentId} con motivo: "${reason}"`);
-    
-    // --- TODO: AQUÍ VA TU CÓDIGO DE API (POST/PATCH /justificar) ---
-    // Deberías enviar el studentId y el reason.
-    // La API debería marcar las faltas como justificadas y devolver éxito/error.
-    // await fetch(`https://tu-api.com/justificar/${studentId}`, {
-    //   method: 'POST', // o PATCH
-    //   body: JSON.stringify({ motivo: reason }),
-    //   headers: { 'Content-Type': 'application/json' }
-    // });
-    // Aquí simula éxito después de 500ms
-    await new Promise(resolve => setTimeout(resolve, 500));
-    // --------------------------------------------------
+    let submissionDateObject = new Date(entry.submissionDate);
+    if (isNaN(submissionDateObject.getTime())) {
+      return selectedHistoryMonth === 'all';
+    }
 
-    // Si la API tiene éxito, eliminamos al alumno de las listas locales
-    setAllAlertsList(prevList => prevList.filter(alert => alert.id !== studentId));
-    // setFilteredAlertsList se actualizará automáticamente por el useEffect #2
-    
-    closeJustifyModal(); // Cierra el modal
-  };
-  // --- FIN NUEVAS FUNCIONES ---
-
+    if (selectedHistoryMonth === 'all') return true;
+    return submissionDateObject.getMonth() + 1 === parseInt(selectedHistoryMonth, 10);
+  });
 
   return (
-    <main className="dashboard-main">
-      <div className="page-title-container">
-        <h1 className="page-title">Panel de Gestión de Alertas</h1>
-        <div className="title-decorator"></div>
+    <div className="alertas-page">
+      <h1>Justificación de Alumnos</h1>
+
+      <TurnToggle activeMode={activeMode} onToggle={handleModeToggle} />
+
+      <div className="alerts-container">
+        {studentsData.length > 0 ? (
+          studentsData.map((student) => (
+            <div key={student.id} onClick={() => handleSelectStudent(student)}>
+              <AlertStudentCard student={student} />
+            </div>
+          ))
+        ) : (
+          <p>No hay alumnos con alertas en este turno.</p>
+        )}
       </div>
 
-      <DashboardControls 
-        activeMode={activeMode}
-        onModeChange={setActiveMode}
-      />
-
-      {isLoading ? (
-        <div className="loading-message">Cargando alertas...</div>
-      ) : (
-        <AlertsTable 
-          alerts={filteredAlertsList} 
-          searchQuery={searchQuery} 
-          onSearchChange={setSearchQuery} 
-          onOpenJustifyModal={openJustifyModal} // Pasar handler para abrir modal
-          onToggleHistory={toggleHistory}       // Pasar handler para historial
-          expandedHistoryId={expandedHistoryId} // Pasar ID del historial expandido
+      {selectedStudent && (
+        <AlertStudentCard
+          student={selectedStudent}
+          onClose={handleCloseStudentCard}
+          onSubmitJustification={submitJustification}
+          isModal
         />
       )}
 
-      {/* Renderizamos el Modal (solo se muestra si isOpen es true) */}
-      <JustifyModal 
-        isOpen={modalState.isOpen}
-        onClose={closeJustifyModal}
-        studentName={modalState.studentName}
-        onSubmit={submitJustification} // Pasar el "interruptor" de submit
-      />
-    </main>
+      <div className="history-controls">
+        <button onClick={handleViewHistory} className="view-history-btn">
+          Ver Historial de Justificaciones
+        </button>
+        <button onClick={openClearConfirm} className="clear-history-btn">
+          Borrar Historial
+        </button>
+      </div>
+
+      {isHistoryModalOpen && (
+        <JustificationHistoryModal
+          onClose={closeHistoryModal}
+          history={filteredHistory}
+          selectedMonth={selectedHistoryMonth}
+          onMonthChange={setSelectedHistoryMonth}
+          onClearHistory={openClearConfirm}
+        />
+      )}
+
+      {isConfirmClearOpen && (
+        <ConfirmationModal
+          message="¿Seguro que deseas borrar todo el historial?"
+          onConfirm={handleClearHistory}
+          onCancel={closeClearConfirm}
+        />
+      )}
+    </div>
   );
 };
 
