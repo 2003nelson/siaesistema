@@ -1,50 +1,14 @@
-// src/pages/GestionUsuariosPage.jsx
 import React, { useState, useEffect } from 'react';
+import apiClient from '../api/axios'; // Importa tu cliente Axios
+
+// --- 1. Importa los 4 componentes que me pasaste ---
 import UserPermissionCard from '../components/Users/UserPermissionCard.jsx';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import AddUserModal from '../components/Users/AddUserModal.jsx';
 import DeleteUserSelectModal from '../components/Users/DeleteUserSelectModal.jsx';
 import DeleteConfirmModal from '../components/Users/DeleteConfirmModal.jsx';
-// 1. Importa el modal de Agregar Usuario
-import AddUserModal from '../components/Users/AddUserModal.jsx';
 
-// --- DATOS DEFAULT (MOCK DATA) ---
-const MOCK_USERS_DATA = [
-    {
-        id: 'u1',
-        name: 'Marco Antonio Pérez',
-        role: 'Prefecto Matutino',
-        permissions: {
-            canViewDashboard: true,
-            canManageAlerts: true,
-            canEditStudents: false,
-            canManageUsers: false,
-        },
-    },
-    {
-        id: 'u2',
-        name: 'Sandra López',
-        role: 'Prefecto Vespertino',
-        permissions: {
-            canViewDashboard: true,
-            canManageAlerts: true,
-            canEditStudents: false,
-            canManageUsers: false,
-        },
-    },
-    {
-        id: 'u3',
-        name: 'Laura Mendoza',
-        role: 'Coordinación Académica',
-        permissions: {
-            canViewDashboard: true,
-            canManageAlerts: false,
-            canEditStudents: true,
-            canManageUsers: false,
-        },
-    },
-];
-// --- FIN DE DATOS DEFAULT ---
-
+// --- 2. Importa los iconos que usa esta página ---
+import { PlusCircle, Trash2, AlertCircle } from 'lucide-react';
 
 const GestionUsuariosPage = () => {
     const [users, setUsers] = useState([]);
@@ -52,36 +16,49 @@ const GestionUsuariosPage = () => {
     const [isDeleteSelectOpen, setIsDeleteSelectOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [userToDelete, setUserToDelete] = useState({ id: null, name: '' });
-
-    // --- 2. AÑADE ESTADO PARA MODAL AGREGAR USUARIO ---
     const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
-    // --------------------------------------------------
+    
+    // Estado para feedback general (ej. 'Permisos actualizados')
+    const [feedback, setFeedback] = useState({ message: '', type: '' });
+    const [isSaving, setIsSaving] = useState(false); // Estado de carga genérico para modals
+    
+    // Temporizador para limpiar el feedback
+    useEffect(() => {
+        if (feedback.message) {
+            const timer = setTimeout(() => {
+                setFeedback({ message: '', type: '' });
+            }, 3000); // Oculta después de 3 segundos
+            return () => clearTimeout(timer);
+        }
+    }, [feedback]);
+
 
     // *** INTERRUPTOR #1: Cargar la lista de usuarios ***
-    useEffect(() => {
+    const fetchUsers = async () => {
         setIsLoading(true);
-        const fetchData = async () => {
-            console.log('API Call: Obteniendo lista de usuarios...');
-            try {
-                // --- TODO: API GET /usuarios ---
-                const data = MOCK_USERS_DATA;
-                // -----------------------------
-                setUsers(data);
-            } catch (error) {
-                console.error("Error al obtener usuarios:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        const timer = setTimeout(() => fetchData(), 300);
-        return () => clearTimeout(timer);
+        try {
+            // --- CONEXIÓN API ---
+            const response = await apiClient.get('/users');
+            setUsers(response.data);
+            // --------------------
+        } catch (error) {
+            console.error("Error al obtener usuarios:", error);
+            setFeedback({ message: 'Error al cargar la lista de usuarios.', type: 'error' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    // Carga los usuarios al montar el componente
+    useEffect(() => {
+        fetchUsers();
     }, []);
 
     // *** INTERRUPTOR #2: Actualizar un permiso ***
-    const handlePermissionChange = (userId, permissionKey, newValue) => {
-        console.log(`API Call: Actualizando permiso ${permissionKey} a ${newValue} para usuario ${userId}`);
-        // --- TODO: API PATCH /usuarios/{userId} ---
-        // ---------------------------------------
+    const handlePermissionChange = async (userId, permissionKey, newValue) => {
+        
+        // Optimistic UI: Actualiza el estado local primero
+        const originalUsers = users;
         setUsers(currentUsers =>
             currentUsers.map(user =>
                 user.id === userId
@@ -89,33 +66,51 @@ const GestionUsuariosPage = () => {
                     : user
             )
         );
+
+        const currentUser = originalUsers.find(u => u.id === userId);
+        if (!currentUser) return;
+        
+        const updatedPermissions = {
+             ...currentUser.permissions, 
+             [permissionKey]: newValue 
+        };
+
+        try {
+            // --- CONEXIÓN API ---
+            // Llama a la API en segundo plano
+            await apiClient.patch(`/users/${userId}/permissions`, {
+                permissions: updatedPermissions 
+            });
+            // --------------------
+            setFeedback({ message: 'Permisos actualizados.', type: 'success' });
+            
+        } catch (error) {
+            console.error("Error al actualizar permiso:", error);
+            setFeedback({ message: 'Error al guardar el permiso. Revirtiendo...', type: 'error' });
+            // Rollback: Si la API falla, revierte el cambio en el estado local
+            setUsers(originalUsers);
+        }
     };
 
-    // --- 3. FUNCIONES PARA MODAL AGREGAR USUARIO ---
+    // --- Funciones para Modal Agregar Usuario ---
     const openAddUserModal = () => setIsAddUserModalOpen(true);
     const closeAddUserModal = () => setIsAddUserModalOpen(false);
 
-    // *** INTERRUPTOR #4: Agregar Nuevo Usuario ***
+    // *** INTERRUPTOR #3: Agregar Nuevo Usuario ***
     const handleAddUser = async (newUserData) => {
-        console.log('API Call: Agregando nuevo usuario:', newUserData);
-
-        // --- TODO: AQUÍ VA TU CÓDIGO DE API (POST /usuarios) ---
-        // Envía newUserData y obtén el usuario creado con ID real.
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simula API success
-        // Simulación: crea un ID temporal
-        const createdUser = {
-            ...newUserData, // Incluye name, role, permissions (la contraseña no se guarda en el estado local)
-            id: `temp-${Date.now()}` // Usa ID temporal
-        };
-        // ----------------------------------------------------
+        // Esta función 'lanza' un error si la API falla, que el modal (AddUserModal) atrapa
+        // --- CONEXIÓN API ---
+        const response = await apiClient.post('/users', newUserData);
+        const createdUser = response.data; // El usuario creado con su ID real
+        // --------------------
 
         // Si la API tiene éxito, actualiza el estado local
         setUsers(currentUsers => [...currentUsers, createdUser]);
-        // closeAddUserModal(); // El modal se cierra solo en su handleSubmit
+        setFeedback({ message: 'Usuario creado exitosamente.', type: 'success' });
+        // El modal se cierra solo desde su propio 'handleSubmit'
     };
-    // --------------------------------------
 
-    // --- Funciones para Eliminar Usuario (sin cambios) ---
+    // --- Funciones para Eliminar Usuario ---
     const openDeleteUserModal = () => setIsDeleteSelectOpen(true);
     const closeDeleteUserModal = () => {
         setIsDeleteSelectOpen(false);
@@ -130,16 +125,30 @@ const GestionUsuariosPage = () => {
         setIsDeleteConfirmOpen(false);
         setUserToDelete({ id: null, name: '' });
     };
+    
+    // *** INTERRUPTOR #4: Confirmar Eliminación ***
     const confirmDeleteUser = async () => {
         if (!userToDelete.id) return;
-        console.log(`API Call: Eliminando usuario ${userToDelete.id} (${userToDelete.name})`);
-        // --- TODO: API DELETE /usuarios/{userId}) ---
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simula API success
-        // ---------------------------------------
-        setUsers(currentUsers => currentUsers.filter(user => user.id !== userToDelete.id));
-        closeDeleteConfirm();
+        
+        setIsSaving(true);
+        try {
+            // --- CONEXIÓN API ---
+            await apiClient.delete(`/users/${userToDelete.id}`);
+            // --------------------
+            
+            setUsers(currentUsers => currentUsers.filter(user => user.id !== userToDelete.id));
+            setFeedback({ message: 'Usuario eliminado.', type: 'success' });
+            closeDeleteConfirm();
+            
+        } catch (error) {
+             console.error(`Error al eliminar usuario ${userToDelete.id}:`, error);
+             // Muestra el error de la API si existe (ej. "No se puede eliminar al admin")
+             const apiErrorMessage = error.response?.data?.detail || 'Error al eliminar el usuario.';
+             setFeedback({ message: apiErrorMessage, type: 'error' });
+        } finally {
+            setIsSaving(false);
+        }
     };
-    // ------------------------------------
 
     return (
         <main className="dashboard-main">
@@ -149,7 +158,6 @@ const GestionUsuariosPage = () => {
                     <div className="title-decorator"></div>
                 </div>
                 <div className="page-actions">
-                    {/* 4. Vincula el botón Agregar a la función que abre el modal de agregar */}
                     <button className="action-button add-button" onClick={openAddUserModal}>
                         <PlusCircle size={18} />
                         Agregar Usuario
@@ -164,26 +172,37 @@ const GestionUsuariosPage = () => {
             <p className="page-subtitle">
                 Asigna o revoca permisos a los perfiles de usuario que acceden al sistema.
             </p>
+            
+            {/* Feedback Global */}
+            {feedback.message && (
+                <div className={`form-feedback ${feedback.type} global-feedback`}>
+                    <AlertCircle size={18} /> {feedback.message}
+                </div>
+            )}
 
             {isLoading ? (
                 <div className="loading-message">Cargando usuarios...</div>
             ) : (
                 <div className="user-cards-grid">
-                    {users.map(user => (
-                        <UserPermissionCard
-                            key={user.id}
-                            user={user}
-                            onPermissionChange={handlePermissionChange}
-                        />
-                    ))}
+                    {users.length > 0 ? (
+                        users.map(user => (
+                            <UserPermissionCard
+                                key={user.id}
+                                user={user}
+                                onPermissionChange={handlePermissionChange}
+                            />
+                        ))
+                    ) : (
+                        <p>No se encontraron usuarios. Puedes agregar uno para comenzar.</p>
+                    )}
                 </div>
             )}
 
-            {/* --- 5. RENDERIZA TODOS LOS MODALES --- */}
+            {/* --- RENDERIZA TODOS LOS MODALES --- */}
             <AddUserModal
                 isOpen={isAddUserModalOpen}
                 onClose={closeAddUserModal}
-                onSubmit={handleAddUser} // Pasa el "interruptor" para agregar
+                onSubmit={handleAddUser}
             />
 
             <DeleteUserSelectModal
@@ -193,13 +212,17 @@ const GestionUsuariosPage = () => {
                 onConfirmSelection={handleConfirmSelection}
             />
 
+            {/* Tu DeleteConfirmModal (código 2) no acepta 'isSaving'. 
+                Recomiendo actualizarlo para que los botones se deshabiliten, 
+                pero este código funcionará de todos modos.
+            */}
             <DeleteConfirmModal
                 isOpen={isDeleteConfirmOpen}
                 onClose={closeDeleteConfirm}
                 onConfirm={confirmDeleteUser}
                 userName={userToDelete.name}
+                // isSaving={isSaving} // Descomenta si actualizas DeleteConfirmModal
             />
-            {/* --- FIN RENDERIZADO MODALES --- */}
         </main>
     );
 };

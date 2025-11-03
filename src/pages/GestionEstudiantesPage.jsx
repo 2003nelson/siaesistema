@@ -1,50 +1,32 @@
 // src/pages/GestionEstudiantesPage.jsx
-import React, { useState, useEffect, } from 'react';
-// 1. Importa los iconos y los nuevos componentes que usaremos
+import React, { useState, useEffect } from 'react';
+import apiClient from '../api/axios'; // Importamos el cliente API
 import { PlusCircle, UserPlus, XCircle, Link2 } from 'lucide-react';
 import StudentGroupsNav from '../components/Dashboard/StudentGroupsNav.jsx'; // Reutilizamos el filtro de grupos
 import StudentLinkTable from '../components/Students/StudentLinkTable.jsx'; // Componente nuevo para la tabla
 import LinkNfcModal from '../components/Students/LinkNfcModal.jsx'; // Componente nuevo para el modal
 
-// --- MOCK DATA ---
-// Simula los grupos/salones existentes para el filtro
-const MOCK_GROUPS = {
-    '1er Semestre': ['101', '102', '103', '104', '105', '106', '107', '108', '109', '110'],
-    '3er Semestre': ['301', '302', '303', '304', '305', '306', '307', '308'],
-    '5to Semestre': ['501', '502', '503', '504', '505', '506', '507'],
-};
-// Simula estudiantes ya registrados (algunos con NFC, otros no)
-const MOCK_STUDENTS = [
-    { id: 's100', nombre: 'Elena Rodríguez', grupo: '101', matricula: 'MATRICULA001', nfcId: null },
-    { id: 's101', nombre: 'Mario Fernández', grupo: '102', matricula: 'MATRICULA002', nfcId: null },
-    { id: 's102', nombre: 'Camila Torres', grupo: '301', matricula: 'MATRICULA003', nfcId: null },
-    { id: 's103', nombre: 'David Sánchez', grupo: '301', matricula: 'MATRICULA004', nfcId: 'linked_nfc_123' }, // Ya vinculado
-    { id: 's104', nombre: 'Isabela Ramírez', grupo: '505', matricula: 'MATRICULA005', nfcId: null },
-    { id: 's105', nombre: 'Javier Gómez', grupo: '101', matricula: 'MATRICULA006', nfcId: null },
-    { id: 's106', nombre: 'Valentina Soto', grupo: '302', matricula: 'MATRICULA007', nfcId: null },
-];
-// --- FIN MOCK DATA ---
-
+// --- ¡MOCK DATA ELIMINADO! ---
 
 const GestionEstudiantesPage = () => {
     // Estado para visibilidad de formularios
     const [isAddFormVisible, setIsAddFormVisible] = useState(false);
-    // 2. Renombra el estado para la vista de lista de vinculación
     const [isLinkListViewVisible, setIsLinkListViewVisible] = useState(false);
 
     // Estado para formulario "Agregar"
     const [nombre, setNombre] = useState('');
-    const [matriculaAdd, setMatriculaAdd] = useState('');
-    const [grupo, setGrupo] = useState('');
+    const [apellido, setApellido] = useState(''); // <-- NUEVO CAMPO
+    const [matricula, setMatricula] = useState('');
+    const [salonNombre, setSalonNombre] = useState(''); // <-- CAMBIO DE NOMBRE (antes 'grupo')
 
-    // 3. Estados para la lista y filtro de "Vincular"
-    const [allStudents, setAllStudents] = useState([]); // Lista completa de la API
+    // Estados para la lista y filtro de "Vincular"
+    const [semestersData, setSemestersData] = useState({}); // Para el filtro de grupos
     const [filteredStudents, setFilteredStudents] = useState([]); // Lista filtrada por grupo
     const [selectedGroupFilter, setSelectedGroupFilter] = useState('all'); // Grupo seleccionado
 
-    // 4. Estados para el MODAL de vincular NFC
+    // Estados para el MODAL de vincular NFC
     const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-    const [studentToLink, setStudentToLink] = useState(null); // Guarda el {id, nombre} del estudiante
+    const [studentToLink, setStudentToLink] = useState(null); // Guarda el estudiante completo
 
     // Estados generales
     const [isLoading, setIsLoading] = useState(false); // Para la lista de estudiantes
@@ -57,68 +39,90 @@ const GestionEstudiantesPage = () => {
     const showLinkListView = () => { setIsLinkListViewVisible(true); setIsAddFormVisible(false); clearFields(); };
     const hideLinkListView = () => setIsLinkListViewVisible(false);
 
-    // Limpia campos (solo para Add form por ahora, el filtro se maneja diferente)
     const clearFields = () => {
-        setNombre(''); setMatriculaAdd(''); setGrupo('');
+        setNombre(''); setApellido(''); setMatricula(''); setSalonNombre('');
         setSelectedGroupFilter('all'); setStudentToLink(null);
         setFeedback({ message: '', type: '' });
     };
 
-    // *** INTERRUPTOR #1: Cargar Lista de Estudiantes (para Vincular) ***
+    // *** INTERRUPTOR #1: Cargar Grupos (para el filtro) ***
+    useEffect(() => {
+        // Solo carga si la vista de lista está activa
+        if (!isLinkListViewVisible) return;
+
+        const fetchGroups = async () => {
+            try {
+                // Usamos el mismo endpoint del dashboard para obtener los grupos
+                const response = await apiClient.get('/dashboard/turno?modo=general');
+                setSemestersData(response.data.groups);
+            } catch (error) {
+                console.error("Error al obtener grupos:", error);
+                setFeedback({ message: 'Error al cargar filtros de grupo.', type: 'error' });
+            }
+        };
+        fetchGroups();
+    }, [isLinkListViewVisible]);
+
+    // *** INTERRUPTOR #2: Cargar Lista de Estudiantes (para Vincular) ***
     useEffect(() => {
         // Solo carga si la vista de lista está activa
         if (!isLinkListViewVisible) return;
 
         setIsLoading(true);
         const fetchStudents = async () => {
-            console.log("API Call: Obteniendo lista de estudiantes...");
             try {
-                // --- TODO: API GET /estudiantes (debe devolver id, nombre, grupo, matricula, nfcId) ---
-                await new Promise(resolve => setTimeout(resolve, 500)); // Simula API
-                const data = MOCK_STUDENTS;
-                // ----------------------------------------------------
-                setAllStudents(data);
-                setFilteredStudents(data); // Inicialmente muestra todos
-                setSelectedGroupFilter('all'); // Resetea filtro
+                // Filtramos por grupo 'all' (todos) o un grupo específico
+                let url = '/estudiantes';
+                if (selectedGroupFilter !== 'all') {
+                    url = `/estudiantes/salon/${selectedGroupFilter}`;
+                }
+                
+                const response = await apiClient.get(url);
+                // La API ahora devuelve EstudianteReadForLinking
+                // que incluye { matricula, nombre, apellido, salon_nombre, tarjetas: [] }
+                setFilteredStudents(response.data); 
             } catch (error) {
                 console.error("Error al obtener estudiantes:", error);
                 setFeedback({ message: 'Error al cargar estudiantes.', type: 'error' });
+                setFilteredStudents([]); // Limpiamos la lista en caso de error
             } finally {
                 setIsLoading(false);
             }
         };
         fetchStudents();
-    }, [isLinkListViewVisible]); // Se ejecuta cuando se abre la vista de vincular
+    }, [isLinkListViewVisible, selectedGroupFilter]); // Se re-ejecuta si cambia el filtro
 
-    // *** INTERRUPTOR #2: Filtrar Estudiantes por Grupo (Localmente) ***
-    useEffect(() => {
-        if (selectedGroupFilter === 'all') {
-            setFilteredStudents(allStudents);
-        } else {
-            const filtered = allStudents.filter(student => student.grupo === selectedGroupFilter);
-            setFilteredStudents(filtered);
-        }
-        // --- TODO: API ---
-        // Si tu API filtra, este useEffect desaparece y
-        // selectedGroupFilter se añade como dependencia en useEffect #1.
-    }, [selectedGroupFilter, allStudents]);
-
+    
     // *** INTERRUPTOR #3: Guardar Nuevo Estudiante ***
     const handleSaveStudent = async (e) => {
         e.preventDefault();
         setIsSaving(true);
         setFeedback({ message: '', type: '' });
-        const newStudentData = { nombre, matricula: matriculaAdd, grupo };
-        console.log("API Call: Guardando nuevo estudiante:", newStudentData);
-        // --- TODO: API POST /estudiantes ---
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simula
-        const savedStudent = { ...newStudentData, id: `stu-${Date.now()}`, nfcId: null };
-        // -----------------------------------
-        setFeedback({ message: '¡Estudiante guardado! (Simulación)', type: 'success' });
-        // Añade el nuevo estudiante a la lista local (por si el usuario va a vincularlo)
-        setAllStudents(prev => [...prev, savedStudent]);
-        clearFields();
-        setIsSaving(false);
+        
+        // Usamos los nombres de campo de la API (EstudianteCreate)
+        const newStudentData = { 
+            nombre, 
+            apellido,
+            matricula, 
+            salon_nombre: salonNombre 
+        };
+        
+        try {
+            // --- API POST /estudiantes ---
+            const response = await apiClient.post('/estudiantes', newStudentData);
+            const savedStudent = response.data; // La API devuelve el estudiante creado
+            // -----------------------------------
+            
+            setFeedback({ message: `¡Estudiante ${savedStudent.nombre} guardado!`, type: 'success' });
+            clearFields(); // Limpia el formulario
+        
+        } catch (error) {
+            console.error("Error guardando estudiante:", error);
+            const errorMsg = error.response?.data?.detail || 'Error desconocido al guardar.';
+            setFeedback({ message: `Error: ${errorMsg}`, type: 'error' });
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     // --- FUNCIONES PARA MODAL DE VINCULAR NFC ---
@@ -138,29 +142,41 @@ const GestionEstudiantesPage = () => {
         setIsSaving(true);
         setFeedback({ message: '', type: '' });
 
+        // Usamos los nombres de campo de la API (TarjetaCreate)
         const linkData = {
-            studentId: studentToLink.id,
-            nfcId: nfcId,
+            nfc_id: nfcId,
+            estudiante_matricula: studentToLink.matricula, // Usamos la matrícula
         };
-        console.log("API Call: Vinculando NFC...", linkData);
-        // --- TODO: API POST or PATCH /estudiantes/{studentId}/link-nfc ---
+        
         try {
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Simula API success
+            // --- API POST /tarjetas ---
+            const response = await apiClient.post('/tarjetas', linkData);
+            const linkedCard = response.data; // La API devuelve la tarjeta creada
             // ----------------------------------------------------------------------
-            // Muestra el feedback en la vista principal
-            setFeedback({ message: `¡NFC vinculado a ${studentToLink.nombre}! (Simulación)`, type: 'success' });
+            
+            setFeedback({ message: `¡NFC vinculado a ${studentToLink.nombre}!`, type: 'success' });
 
             // Actualiza la lista local para reflejar el cambio (deshabilita el botón)
-            setAllStudents(prevStudents => prevStudents.map(s =>
-                s.id === studentToLink.id ? { ...s, nfcId: nfcId } : s
+            setFilteredStudents(prevStudents => prevStudents.map(s =>
+                s.matricula === studentToLink.matricula 
+                    ? { ...s, tarjetas: [...s.tarjetas, linkedCard] } // Añade la nueva tarjeta a la lista
+                    : s
             ));
-            // filteredStudents se actualizará automáticamente por useEffect #2
 
             closeLinkModal(); // Cierra el modal de vincular
+        
         } catch (error) {
-             console.error("Error al vincular NFC:", error);
-             // Idealmente, LinkNfcModal manejaría su propio estado de error
-             setFeedback({ message: `Error: ${error.message}`, type: 'error' });
+            console.error("Error al vincular NFC:", error);
+            const errorMsg = error.response?.data?.detail || 'Error desconocido al vincular.';
+            // En lugar de poner el feedback en la página, lo pasamos al modal
+            // (Asumiremos que LinkNfcModal puede mostrar un error)
+            // O, si LinkNfcModal no puede, lo mostramos en el modal:
+            // setModalError(errorMsg); // (Necesitarías añadir este estado al modal)
+            
+            // Por ahora, lo mostramos en la página principal:
+            setFeedback({ message: `Error: ${errorMsg}`, type: 'error' });
+            // Cerramos el modal incluso si hay error
+            closeLinkModal();
         } finally {
             setIsSaving(false);
         }
@@ -202,16 +218,20 @@ const GestionEstudiantesPage = () => {
                             {feedback.message && ( <div className={`form-feedback ${feedback.type}`}>{feedback.message}</div> )}
                             <div className="form-grid">
                                 <div className="modal-input-group">
-                                    <label htmlFor="studentName">Nombre Completo:</label>
-                                    <input type="text" id="studentName" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+                                    <label htmlFor="studentNombre">Nombre(s):</label>
+                                    <input type="text" id="studentNombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
                                 </div>
                                 <div className="modal-input-group">
-                                    <label htmlFor="studentMatriculaAdd">Matrícula:</label>
-                                    <input type="text" id="studentMatriculaAdd" value={matriculaAdd} onChange={(e) => setMatriculaAdd(e.target.value)} required />
+                                    <label htmlFor="studentApellido">Apellido(s):</label>
+                                    <input type="text" id="studentApellido" value={apellido} onChange={(e) => setApellido(e.target.value)} required />
                                 </div>
                                 <div className="modal-input-group">
-                                    <label htmlFor="studentGrupo">Grupo:</label>
-                                    <input type="text" id="studentGrupo" value={grupo} onChange={(e) => setGrupo(e.target.value)} placeholder="Ej: 101, 305, 507" required />
+                                    <label htmlFor="studentMatricula">Matrícula:</label>
+                                    <input type="text" id="studentMatricula" value={matricula} onChange={(e) => setMatricula(e.target.value)} required />
+                                </div>
+                                <div className="modal-input-group">
+                                    <label htmlFor="studentSalon">Salón (Grupo):</label>
+                                    <input type="text" id="studentSalon" value={salonNombre} onChange={(e) => setSalonNombre(e.target.value)} placeholder="Ej: 101, 305, 507" required />
                                 </div>
                             </div>
                             <div className="form-actions">
@@ -228,16 +248,16 @@ const GestionEstudiantesPage = () => {
                 {isLinkListViewVisible && (
                     <div className="student-link-view card">
                         <div className="form-header">
-                             <h2 className="card-title">Vincular NFC a Estudiante</h2>
-                             <button onClick={hideLinkListView} className="close-form-btn" title="Cerrar vista">
-                                 <XCircle size={24} />
-                             </button>
-                         </div>
+                            <h2 className="card-title">Vincular NFC a Estudiante</h2>
+                            <button onClick={hideLinkListView} className="close-form-btn" title="Cerrar vista">
+                                <XCircle size={24} />
+                            </button>
+                        </div>
 
                         {/* Filtro por Grupo */}
                         <div className="student-group-filter-container">
-                             <StudentGroupsNav
-                                semesters={MOCK_GROUPS} // Pasa los grupos disponibles
+                            <StudentGroupsNav
+                                semesters={semestersData} // ¡Datos de la API!
                                 selectedGroup={selectedGroupFilter} // Estado del grupo seleccionado
                                 onGroupSelect={setSelectedGroupFilter} // Handler para cambiar grupo
                                 showAllOption={true} // Le decimos que muestre "Mostrar Todos"
@@ -246,7 +266,7 @@ const GestionEstudiantesPage = () => {
 
                         {/* Feedback global para esta vista (ej. al vincular) */}
                         {feedback.message && feedback.type === 'success' && (
-                             <div className={`form-feedback ${feedback.type}`}>{feedback.message}</div>
+                            <div className={`form-feedback ${feedback.type}`}>{feedback.message}</div>
                         )}
 
                         {/* Tabla de Estudiantes */}
@@ -254,7 +274,7 @@ const GestionEstudiantesPage = () => {
                             <div className="loading-message">Cargando estudiantes...</div>
                         ) : (
                             <StudentLinkTable
-                                students={filteredStudents} // Pasa lista filtrada
+                                students={filteredStudents} // Pasa lista filtrada de la API
                                 onOpenLinkModal={openLinkModal} // Pasa handler para abrir modal
                             />
                         )}
@@ -263,15 +283,15 @@ const GestionEstudiantesPage = () => {
                 {/* --- FIN VISTA 2 --- */}
             </div>
 
-             {/* --- MODAL PARA INGRESAR NFC (se muestra sobre todo) --- */}
+            {/* --- MODAL PARA INGRESAR NFC (se muestra sobre todo) --- */}
             <LinkNfcModal
                 isOpen={isLinkModalOpen}
                 onClose={closeLinkModal}
                 onSubmit={submitNfcLink} // Pasa el "interruptor" para guardar
-                studentName={studentToLink?.nombre || ''} // Pasa el nombre del estudiante
+                studentName={studentToLink ? `${studentToLink.nombre} ${studentToLink.apellido}` : ''} // Pasa el nombre del estudiante
                 isSaving={isSaving} // Pasa el estado de guardado
             />
-             {/* --- FIN MODAL --- */}
+            {/* --- FIN MODAL --- */}
         </main>
     );
 };

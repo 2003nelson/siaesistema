@@ -1,50 +1,72 @@
-// src/components/Users/UserPermissionCard.jsx
 import React from 'react';
 
-// Un diccionario para "traducir" las llaves de permisos a texto legible
-const PERMISSION_LABELS = {
-  canViewDashboard: 'Ver Dashboard Principal',
-  canManageAlerts: 'Gestionar Alertas (Justificar Faltas)',
-  canEditStudents: 'Editar Info. de Estudiantes',
-  canManageUsers: 'Gestionar Usuarios (esta página)',
+// --- CAMBIO 1 ---
+// El componente 'PermissionToggle' ya no acepta ni renderiza la prop 'description'
+const PermissionToggle = ({ label, isChecked, onChange }) => {
+    const id = `toggle-${label.replace(/\s+/g, '-')}`;
+    return (
+        <div className="permission-toggle-item">
+            <div className="permission-toggle-label">
+                <label htmlFor={id}>{label}</label>
+                {/* La línea <p className="permission-description">... se ha eliminado */}
+            </div>
+            <div className="toggle-switch">
+                <input
+                    type="checkbox"
+                    id={id}
+                    checked={isChecked}
+                    onChange={onChange}
+                />
+                <label htmlFor={id} className="slider"></label>
+            </div>
+        </div>
+    );
 };
 
+// Componente principal de la tarjeta
 const UserPermissionCard = ({ user, onPermissionChange }) => {
+    
+    // Handler que avisa a la página padre (GestionUsuariosPage) sobre un cambio
+    const handleChange = (permissionKey) => {
+        const newValue = !user.permissions[permissionKey];
+        // Llama a la función 'handlePermissionChange' de la página padre
+        onPermissionChange(user.id, permissionKey, newValue);
+    };
 
-  // Esta función se llama cuando se hace clic en un interruptor
-  const handleToggle = (permissionKey, currentValue) => {
-    // Llama al "interruptor" de la página principal
-    onPermissionChange(user.id, permissionKey, !currentValue);
-  };
-
-  return (
-    <div className="user-card">
-      <div className="user-card-header">
-        <h3 className="user-name">{user.name}</h3>
-        <span className="user-role">{user.role}</span>
-      </div>
-      <div className="permission-list">
-        <h4 className="permission-list-title">Permisos Asignados:</h4>
-        {Object.entries(user.permissions).map(([key, value]) => (
-          <div key={key} className="permission-item">
-            <span className="permission-label">
-              {PERMISSION_LABELS[key] || key}
-            </span>
+    return (
+        <div className="user-permission-card card">
+            <div className="user-info-header">
+                <h3 className="user-name">{user.full_name || user.username}</h3>
+                <span className="user-role-badge">{user.role}</span>
+                <span className="user-username">(@{user.username})</span>
+            </div>
             
-            {/* El interruptor (toggle switch) */}
-            <label className="toggle-switch">
-              <input 
-                type="checkbox" 
-                checked={value}
-                onChange={() => handleToggle(key, value)}
-              />
-              <span className="slider"></span>
-            </label>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+            <div className="permissions-list">
+                {/* --- CAMBIO 2 --- */}
+                {/* Se eliminaron las props 'description' de todos los toggles */}
+                <PermissionToggle
+                    label="Ver Dashboard"
+                    isChecked={user.permissions.canViewDashboard}
+                    onChange={() => handleChange('canViewDashboard')}
+                />
+                <PermissionToggle
+                    label="Gestionar Alertas"
+                    isChecked={user.permissions.canManageAlerts}
+                    onChange={() => handleChange('canManageAlerts')}
+                />
+                <PermissionToggle
+                    label="Editar Estudiantes"
+                    isChecked={user.permissions.canEditStudents}
+                    onChange={() => handleChange('canEditStudents')}
+                />
+                <PermissionToggle
+                    label="Gestionar Usuarios"
+                    isChecked={user.permissions.canManageUsers}
+                    onChange={() => handleChange('canManageUsers')}
+                />
+            </div>
+        </div>
+    );
 };
 
 export default UserPermissionCard;

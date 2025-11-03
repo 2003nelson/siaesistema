@@ -1,60 +1,80 @@
-// src/components/Users/DeleteUserSelectModal.jsx
 import React, { useState } from 'react';
+import { X, AlertCircle } from 'lucide-react';
 
 const DeleteUserSelectModal = ({ isOpen, onClose, users, onConfirmSelection }) => {
-    const [selectedUserId, setSelectedUserId] = useState(null);
+    const [selectedUserId, setSelectedUserId] = useState('');
+    const [error, setError] = useState('');
 
-    if (!isOpen) {
-        return null;
-    }
+    if (!isOpen) return null;
 
-    const handleConfirm = () => {
-        if (selectedUserId) {
-            const selectedUser = users.find(u => u.id === selectedUserId);
-            onConfirmSelection(selectedUserId, selectedUser?.name || 'Usuario desconocido'); // Pass ID and name
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        setError('');
+        if (!selectedUserId) {
+            setError('Por favor, selecciona un usuario para eliminar.');
+            return;
+        }
+        
+        // Buscamos el usuario por su ID. Asumimos que el ID es un número.
+        const user = users.find(u => u.id === parseInt(selectedUserId));
+        
+        if (user) {
+            onConfirmSelection(user.id, user.full_name || user.username);
+        } else {
+            setError('Usuario no encontrado.'); // Error por si acaso
         }
     };
 
+    const handleClose = () => {
+        setSelectedUserId('');
+        setError('');
+        onClose();
+    };
+
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content select-user-modal" onClick={(e) => e.stopPropagation()}>
-                <h2 className="modal-title">Seleccionar Usuario a Eliminar</h2>
-                <p className="modal-subtitle">Elige el perfil de usuario que deseas eliminar del sistema.</p>
-
-                <div className="user-selection-list">
-                    {users.length === 0 ? (
-                        <p>No hay usuarios para eliminar.</p>
-                    ) : (
-                        users.map(user => (
-                            <label key={user.id} className={`user-selection-item ${selectedUserId === user.id ? 'selected' : ''}`}>
-                                <input
-                                    type="radio"
-                                    name="userToDelete"
-                                    value={user.id}
-                                    checked={selectedUserId === user.id}
-                                    onChange={() => setSelectedUserId(user.id)}
-                                />
-                                <div className="user-details">
-                                    <span className="user-name">{user.name}</span>
-                                    <span className="user-role">{user.role}</span>
-                                </div>
-                            </label>
-                        ))
-                    )}
-                </div>
-
-                <div className="modal-actions">
-                    <button className="modal-btn cancel" onClick={onClose}>
-                        Cancelar
-                    </button>
-                    <button
-                        className="modal-btn delete" // Use delete style for confirmation
-                        onClick={handleConfirm}
-                        disabled={!selectedUserId} // Disable if no user is selected
-                    >
-                        Confirmar Selección
+        <div className="modal-overlay">
+            <div className="modal-content card">
+                <div className="modal-header form-header">
+                    <h2 className="card-title">Eliminar Usuario</h2>
+                    <button onClick={handleClose} className="close-form-btn">
+                        <X size={24} />
                     </button>
                 </div>
+                
+                <form onSubmit={handleSubmit}>
+                    <div className="modal-body">
+                        {error && (
+                            <div className="form-feedback error">
+                                <AlertCircle size={18} /> {error}
+                            </div>
+                        )}
+                        <div className="modal-input-group">
+                            <label htmlFor="userSelect">Selecciona el usuario a eliminar:</label>
+                            <select 
+                                id="userSelect" 
+                                value={selectedUserId} 
+                                onChange={(e) => setSelectedUserId(e.target.value)}
+                                required
+                            >
+                                <option value="" disabled>-- Elige un usuario --</option>
+                                {users.map(user => (
+                                    <option key={user.id} value={user.id}>
+                                        {user.full_name || user.username} ({user.role})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div className="modal-actions form-actions">
+                        <button type="button" className="action-button clear-button" onClick={handleClose}>
+                            Cancelar
+                        </button>
+                        <button type="submit" className="action-button delete-button">
+                            Siguiente
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );

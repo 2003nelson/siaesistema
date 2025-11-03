@@ -1,132 +1,148 @@
 // src/components/Users/AddUserModal.jsx
 import React, { useState } from 'react';
+import { X, UserPlus, AlertCircle } from 'lucide-react';
 
-// 'onSubmit' is the "interruptor" function from GestionUsuariosPage
 const AddUserModal = ({ isOpen, onClose, onSubmit }) => {
-    // State for each form field
-    const [name, setName] = useState('');
+    // Estados para todos los campos del formulario
+    const [username, setUsername] = useState('');
+    const [fullName, setFullName] = useState('');
     const [role, setRole] = useState('');
     const [password, setPassword] = useState('');
-    const [nip, setNip] = useState(''); // Assuming NIP is like a PIN
+    
+    // Estado para los checkboxes de permisos
+    const [permissions, setPermissions] = useState({
+        canViewDashboard: true, // Por defecto, casi todos pueden ver
+        canManageAlerts: false,
+        canEditStudents: false,
+        canManageUsers: false,
+    });
+    
+    const [error, setError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState(null); // To display potential errors
 
-    if (!isOpen) {
-        return null;
-    }
-
-    const clearForm = () => {
-        setName('');
-        setRole('');
-        setPassword('');
-        setNip('');
-        setError(null);
-        setIsSaving(false);
+    const handlePermissionChange = (key) => {
+        setPermissions(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
-    const handleClose = () => {
-        clearForm(); // Clear fields when closing
-        onClose();
+    const clearForm = () => {
+        setUsername('');
+        setFullName('');
+        setRole('');
+        setPassword('');
+        setPermissions({
+            canViewDashboard: true, canManageAlerts: false,
+            canEditStudents: false, canManageUsers: false,
+        });
+        setError('');
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault(); // Prevent page reload
-        setIsSaving(true);
-        setError(null);
-
-        // Basic validation (you might want more)
-        if (!name || !role || !password || !nip) {
-            setError('Todos los campos son requeridos.');
-            setIsSaving(false);
+        e.preventDefault();
+        setError('');
+        
+        if (!username || !role || !password) {
+            setError('Usuario, Rol y Contraseña son obligatorios.');
             return;
         }
 
-        const newUser = {
-            name,
+        setIsSaving(true);
+        
+        const newUserData = {
+            username,
+            full_name: fullName,
+            password,
             role,
-            password, // In a real app, send this securely, don't store plain text
-            nip,
-            // Default permissions for new users (can be adjusted)
-            permissions: {
-                canViewDashboard: true,
-                canManageAlerts: false,
-                canEditStudents: false,
-                canManageUsers: false,
-            }
+            permissions,
         };
 
         try {
-            // Call the "interruptor" function from the parent
-            await onSubmit(newUser);
-            handleClose(); // Close modal on success
-        } catch (err) {
-            console.error("Error adding user:", err);
-            setError('Error al crear el usuario. Intenta de nuevo.');
+            // Llama a la función 'handleAddUser' de la página padre
+            await onSubmit(newUserData);
+            // Si tiene éxito, cierra el modal y limpia
+            clearForm();
+            onClose();
+        } catch (apiError) {
+            // Si onSubmit lanza un error (de la API), lo mostramos
+            setError(apiError.message || "Error al guardar el usuario.");
+        } finally {
             setIsSaving(false);
         }
     };
 
+    const handleClose = () => {
+        clearForm();
+        onClose();
+    };
+
+    if (!isOpen) return null;
+
     return (
-        <div className="modal-overlay" onClick={handleClose}>
-            <div className="modal-content add-user-modal" onClick={(e) => e.stopPropagation()}>
-                <h2 className="modal-title">Agregar Nuevo Usuario</h2>
-                <form onSubmit={handleSubmit} className="add-user-form">
-                    {error && <div className="form-error">{error}</div>}
+        <div className="modal-overlay">
+            <div className="modal-content card large-modal">
+                <div className="modal-header form-header">
+                    <h2 className="card-title">Agregar Nuevo Usuario</h2>
+                    <button onClick={handleClose} className="close-form-btn" disabled={isSaving}>
+                        <X size={24} />
+                    </button>
+                </div>
+                
+                <form onSubmit={handleSubmit}>
+                    <div className="modal-body">
+                        {error && (
+                            <div className="form-feedback error">
+                                <AlertCircle size={18} /> {error}
+                            </div>
+                        )}
+                        
+                        <h3 className="form-section-title">Datos de Acceso</h3>
+                        <div className="form-grid-col-3">
+                            <div className="modal-input-group">
+                                <label htmlFor="username">Nombre de Usuario (Login):</label>
+                                <input type="text" id="username" value={username} onChange={e => setUsername(e.target.value)} required />
+                            </div>
+                            <div className="modal-input-group">
+                                <label htmlFor="fullName">Nombre Completo:</label>
+                                <input type="text" id="fullName" value={fullName} onChange={e => setFullName(e.target.value)} />
+                            </div>
+                            <div className="modal-input-group">
+                                <label htmlFor="role">Rol (Puesto):</label>
+                                <input type="text" id="role" value={role} onChange={e => setRole(e.target.value)} placeholder="Ej: Prefecto, Coordinador" required />
+                            </div>
+                            <div className="modal-input-group">
+                                <label htmlFor="password">Contraseña Inicial:</label>
+                                <input type="password" id="password" value={password} onChange={e => setPassword(e.target.value)} required />
+                            </div>
+                        </div>
 
-                    <div className="modal-input-group">
-                        <label htmlFor="newUserName">Nombre Completo:</label>
-                        <input
-                            type="text"
-                            id="newUserName"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                        />
+                        <h3 className="form-section-title">Permisos del Usuario</h3>
+                        <div className="form-grid-col-2">
+                            {/* Checkbox para cada permiso */}
+                            <label className="checkbox-label">
+                                <input type="checkbox" checked={permissions.canViewDashboard} onChange={() => handlePermissionChange('canViewDashboard')} />
+                                Ver Dashboard
+                            </label>
+                            <label className="checkbox-label">
+                                <input type="checkbox" checked={permissions.canManageAlerts} onChange={() => handlePermissionChange('canManageAlerts')} />
+                                Gestionar Alertas
+                            </label>
+                            <label className="checkbox-label">
+                                <input type="checkbox" checked={permissions.canEditStudents} onChange={() => handlePermissionChange('canEditStudents')} />
+                                Editar Estudiantes
+                            </label>
+                            <label className="checkbox-label">
+                                <input type="checkbox" checked={permissions.canManageUsers} onChange={() => handlePermissionChange('canManageUsers')} />
+                                Gestionar Usuarios
+                            </label>
+                        </div>
                     </div>
-
-                    <div className="modal-input-group">
-                        <label htmlFor="newUserRole">Cargo:</label>
-                        <input
-                            type="text"
-                            id="newUserRole"
-                            value={role}
-                            onChange={(e) => setRole(e.target.value)}
-                            placeholder="Ej: Prefecto Matutino"
-                            required
-                        />
-                    </div>
-
-                    <div className="modal-input-group">
-                        <label htmlFor="newUserPassword">Contraseña Temporal:</label>
-                        <input
-                            type="password"
-                            id="newUserPassword"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
-                    </div>
-
-                    <div className="modal-input-group">
-                        <label htmlFor="newUserNip">NIP (4 dígitos):</label>
-                        <input
-                            type="password" // Use password type to mask NIP
-                            id="newUserNip"
-                            value={nip}
-                            onChange={(e) => setNip(e.target.value)}
-                            maxLength={4} // Limit to 4 digits
-                            pattern="\d{4}" // Basic pattern validation for 4 digits
-                            title="Ingresa 4 dígitos numéricos"
-                            required
-                        />
-                    </div>
-
-                    <div className="modal-actions">
-                        <button type="button" className="modal-btn cancel" onClick={handleClose} disabled={isSaving}>
+                    
+                    <div className="modal-actions form-actions">
+                        <button type="button" className="action-button clear-button" onClick={handleClose} disabled={isSaving}>
                             Cancelar
                         </button>
-                        <button type="submit" className="modal-btn save" disabled={isSaving}>
-                            {isSaving ? 'Creando...' : 'Generar Nuevo Usuario'}
+                        <button type="submit" className="action-button save-button" disabled={isSaving}>
+                            <UserPlus size={18} />
+                            {isSaving ? 'Guardando...' : 'Guardar Usuario'}
                         </button>
                     </div>
                 </form>
