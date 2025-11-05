@@ -87,17 +87,21 @@ export function AuthProvider({ children }) {
         checkTokenOnLoad();
     }, []);
 
-    // 6. Pasamos los valores al resto de la app
-    const value = {
-        isAuthenticated,
-        user,
-        isLoading, // El isLoading del LOGIN
-        isAuthLoading, // El isLoading de la carga INICIAL
-        login,
-        logout,
-    };
+    // 6. Función helper para verificar permisos
+    const hasPermission = (permission) => {
+        return user?.permissions?.[permission] === true;
+    };
 
-    return (
+    // 7. Pasamos los valores al resto de la app
+    const value = {
+        isAuthenticated,
+        user,
+        isLoading, // El isLoading del LOGIN
+        isAuthLoading, // El isLoading de la carga INICIAL
+        login,
+        logout,
+        hasPermission, // Función para verificar permisos
+    };    return (
         <AuthContext.Provider value={value}>
             {/* ESTA ES LA CORRECCIÓN: 
                Solo bloqueamos la app en la carga INICIAL,

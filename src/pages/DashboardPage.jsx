@@ -6,27 +6,14 @@ import StatsCard from '../components/Dashboard/StatsCard.jsx';
 import StudentGroupsNav from '../components/Dashboard/StudentGroupsNav.jsx';
 import GroupAttendanceCard from '../components/Dashboard/GroupAttendanceCard.jsx';
 
-// --- LISTA FIJA DE SALONES ---
-// Esta lista ahora define los botones que se mostrarán en el dashboard.
-// La API ya no decide qué salones existen, solo da estadísticas.
-const TODOS_LOS_SALONES = {
-  '1er Semestre': ['101', '102', '103', '104', '105', '106', '107', '108', '109', '110'],
-  '2do Semestre': ['201', '202', '203', '204', '205', '206', '207', '208', '209', '210'],
-  '3er Semestre': ['301', '302', '303', '304', '305', '306', '307', '308'],
-  '4to Semestre': ['401', '402', '403', '404', '405', '406', '407', '408'],
-  '5to Semestre': ['501', '502', '503', '504', '505', '506', '507'],
-  '6to Semestre': ['601', '602', '603', '604', '605', '606', '607'],
-};
-// --- FIN DE LISTA FIJA ---
-
-
 const DashboardPage = () => {
   const [activeMode, setActiveMode] = useState('general');
   const [statsData, setStatsData] = useState({ totalStudents: 0, averageAttendance: 0.0 });
   
-  // --- CAMBIO: 'semestersData' AHORA USA LA LISTA FIJA ---
-  const [semestersData, setSemestersData] = useState(TODOS_LOS_SALONES);
-  // ---------------------------------------------------
+  // Estados para gestión de grupos reales
+  const [grupos, setGrupos] = useState([]);
+  const [semestersData, setSemestersData] = useState({});
+  const [isLoadingGroups, setIsLoadingGroups] = useState(true);
 
   const [selectedGroup, setSelectedGroup] = useState(null);
   
@@ -34,6 +21,62 @@ const DashboardPage = () => {
   const [groupAttendanceData, setGroupAttendanceData] = useState(null);
   const [isTurnLoading, setIsTurnLoading] = useState(true);
   const [isGroupLoading, setIsGroupLoading] = useState(false);
+
+  // Función para cargar grupos desde la API
+  const fetchGroups = async () => {
+    setIsLoadingGroups(true);
+    try {
+      const response = await apiClient.get('/grupos');
+      const groupsData = response.data;
+      setGrupos(groupsData);
+      
+      // Organizar grupos por semestre y filtrar por turno activo
+      organizarGruposPorSemestre(groupsData);
+      
+    } catch (error) {
+      console.error('Error al cargar grupos:', error);
+      setGrupos([]);
+      setSemestersData({});
+    } finally {
+      setIsLoadingGroups(false);
+    }
+  };
+
+  // Función para organizar grupos por semestre y filtrar por turno
+  const organizarGruposPorSemestre = (groupsData) => {
+    // Filtrar grupos por turno activo (si no es 'general')
+    const gruposFiltrados = activeMode === 'general' 
+      ? groupsData 
+      : groupsData.filter(grupo => grupo.turno?.toLowerCase() === activeMode.toLowerCase());
+
+    // Organizar por semestre
+    const gruposOrganizados = gruposFiltrados.reduce((acc, grupo) => {
+      const semestreKey = `${grupo.semestre}er Semestre`;
+      
+      if (!acc[semestreKey]) {
+        acc[semestreKey] = [];
+      }
+      
+      // Agregar el nombre del grupo a la lista del semestre
+      acc[semestreKey].push(grupo.nombre || `Grupo ${grupo.id}`);
+      
+      return acc;
+    }, {});
+
+    setSemestersData(gruposOrganizados);
+  };
+
+  // Cargar grupos al montar el componente
+  useEffect(() => {
+    fetchGroups();
+  }, []);
+
+  // Reorganizar grupos cuando cambie el modo activo
+  useEffect(() => {
+    if (grupos.length > 0) {
+      organizarGruposPorSemestre(grupos);
+    }
+  }, [activeMode, grupos]);
 
   
   // *** INTERRUPTOR #1: Cargar datos del TURNO (StatsCard) ***
@@ -120,20 +163,25 @@ const DashboardPage = () => {
         onModeChange={setActiveMode}
       />
 
-      {isTurnLoading ? (
-        <div className="loading-message">Cargando datos del turno...</div>
+      {(isTurnLoading || isLoadingGroups) ? (
+        <div className="loading-message">
+          {isTurnLoading && isLoadingGroups ? 'Cargando datos del dashboard...' :
+           isTurnLoading ? 'Cargando datos del turno...' :
+           'Cargando grupos...'}
+        </div>
       ) : (
         <>
           <div className="widgets-grid">
             <StatsCard 
-              title={`Datos de la Sección ${activeMode}`}
+              title={`Datos de la Sección ${activeMode.charAt(0).toUpperCase() + activeMode.slice(1)}`}
               totalStudents={statsData.totalStudents}
               averageAttendance={statsData.averageAttendance}
             />
             <StudentGroupsNav 
-              semesters={semestersData} // Pasa la lista fija de salones
+              semesters={semestersData} // Pasa los grupos reales organizados por semestre
               selectedGroup={selectedGroup}
               onGroupSelect={handleSelectGroup}
+              activeMode={activeMode} // Pasar el modo activo para mostrar información contextual
             />
           </div>
           

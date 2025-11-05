@@ -78,9 +78,9 @@ const AddUserModal = ({ isOpen, onClose, onSubmit }) => {
 
     return (
         <div className="modal-overlay">
-            <div className="modal-content card large-modal">
+            <div className="modal-content large-modal">
                 <div className="modal-header form-header">
-                    <h2 className="card-title">Agregar Nuevo Usuario</h2>
+                    <h2 className="modal-title">Agregar Nuevo Usuario</h2>
                     <button onClick={handleClose} className="close-form-btn" disabled={isSaving}>
                         <X size={24} />
                     </button>
@@ -136,11 +136,11 @@ const AddUserModal = ({ isOpen, onClose, onSubmit }) => {
                         </div>
                     </div>
                     
-                    <div className="modal-actions form-actions">
-                        <button type="button" className="action-button clear-button" onClick={handleClose} disabled={isSaving}>
+                    <div className="modal-actions">
+                        <button type="button" className="modal-btn cancel" onClick={handleClose} disabled={isSaving}>
                             Cancelar
                         </button>
-                        <button type="submit" className="action-button save-button" disabled={isSaving}>
+                        <button type="submit" className="modal-btn save" disabled={isSaving}>
                             <UserPlus size={18} />
                             {isSaving ? 'Guardando...' : 'Guardar Usuario'}
                         </button>
