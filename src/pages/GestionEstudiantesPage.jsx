@@ -1,13 +1,16 @@
 // src/pages/GestionEstudiantesPage.jsx
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/axios'; // Importamos el cliente API
-import { PlusCircle, UserPlus, XCircle, Link2, Users, CheckCircle, AlertCircle, Edit3, Trash2, ChevronDown } from 'lucide-react';
+import { PlusCircle, UserPlus, XCircle, Link2, Users, CheckCircle, AlertCircle, Edit3, Trash2, ChevronDown, Calendar, CalendarDays, Clock } from 'lucide-react';
 import StudentGroupsNav from '../components/Dashboard/StudentGroupsNav.jsx'; // Reutilizamos el filtro de grupos
 import StudentLinkTable from '../components/Students/StudentLinkTable.jsx'; // Componente nuevo para la tabla
 import LinkNfcModal from '../components/Students/LinkNfcModal.jsx'; // Componente nuevo para el modal
 import CreateGroupModal from '../components/Groups/CreateGroupModal.jsx'; // Modal para crear grupos
 import EditGroupModal from '../components/Groups/EditGroupModal.jsx'; // Modal para editar grupos
 import DeleteGroupModal from '../components/Groups/DeleteGroupModal.jsx'; // Modal para eliminar grupos
+import CreateCycleModal from '../components/SchoolCycles/CreateCycleModal.jsx'; // Modal para crear ciclos
+import EditCycleModal from '../components/SchoolCycles/EditCycleModal.jsx'; // Modal para editar ciclos
+import DeleteCycleModal from '../components/SchoolCycles/DeleteCycleModal.jsx'; // Modal para eliminar ciclos
 
 // --- ¡MOCK DATA ELIMINADO! ---
 
@@ -16,6 +19,7 @@ const GestionEstudiantesPage = () => {
     const [isAddFormVisible, setIsAddFormVisible] = useState(false);
     const [isLinkListViewVisible, setIsLinkListViewVisible] = useState(false);
     const [isGroupManagementVisible, setIsGroupManagementVisible] = useState(false);
+    const [isSchoolCycleVisible, setIsSchoolCycleVisible] = useState(false);
 
     // Estados para gestión de grupos
     const [grupos, setGrupos] = useState([]);
@@ -35,6 +39,21 @@ const GestionEstudiantesPage = () => {
     
     // Estados para colapsar/expandir semestres
     const [collapsedSemesters, setCollapsedSemesters] = useState(new Set());
+
+    // Estados para gestión de ciclo escolar
+    const [ciclosEscolares, setCiclosEscolares] = useState([]);
+    const [isLoadingCycles, setIsLoadingCycles] = useState(false);
+    const [activeCycle, setActiveCycle] = useState(null);
+    const [isCreateCycleModalOpen, setIsCreateCycleModalOpen] = useState(false);
+    const [isCreatingCycle, setIsCreatingCycle] = useState(false);
+    const [isEditingCycle, setIsEditingCycle] = useState(false);
+    const [isDeletingCycle, setIsDeletingCycle] = useState(false);
+    const [cycleToEdit, setCycleToEdit] = useState(null);
+    const [cycleToDelete, setCycleToDelete] = useState(null);
+
+    // Estados para mensajes de feedback
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
 
     // Estado para formulario "Agregar"
     const [nombre, setNombre] = useState('');
@@ -57,12 +76,14 @@ const GestionEstudiantesPage = () => {
     const [feedback, setFeedback] = useState({ message: '', type: '' });
 
     // --- Control de Vistas ---
-    const showAddForm = () => { setIsAddFormVisible(true); setIsLinkListViewVisible(false); setIsGroupManagementVisible(false); clearFields(); };
+    const showAddForm = () => { setIsAddFormVisible(true); setIsLinkListViewVisible(false); setIsGroupManagementVisible(false); setIsSchoolCycleVisible(false); clearFields(); };
     const hideAddForm = () => setIsAddFormVisible(false);
-    const showLinkListView = () => { setIsLinkListViewVisible(true); setIsAddFormVisible(false); setIsGroupManagementVisible(false); clearFields(); };
+    const showLinkListView = () => { setIsLinkListViewVisible(true); setIsAddFormVisible(false); setIsGroupManagementVisible(false); setIsSchoolCycleVisible(false); clearFields(); };
     const hideLinkListView = () => setIsLinkListViewVisible(false);
-    const showGroupManagement = () => { setIsGroupManagementVisible(true); setIsAddFormVisible(false); setIsLinkListViewVisible(false); clearFields(); };
+    const showGroupManagement = () => { setIsGroupManagementVisible(true); setIsAddFormVisible(false); setIsLinkListViewVisible(false); setIsSchoolCycleVisible(false); clearFields(); };
     const hideGroupManagement = () => setIsGroupManagementVisible(false);
+    const showSchoolCycleManagement = () => { setIsSchoolCycleVisible(true); setIsAddFormVisible(false); setIsLinkListViewVisible(false); setIsGroupManagementVisible(false); clearFields(); };
+    const hideSchoolCycleManagement = () => setIsSchoolCycleVisible(false);
 
     const clearFields = () => {
         setNombre(''); setApellido(''); setMatricula(''); setSalonNombre('');
@@ -184,6 +205,14 @@ const GestionEstudiantesPage = () => {
         };
         fetchGroups();
     }, [isGroupManagementVisible]);
+
+    // *** INTERRUPTOR #2.7: Cargar Lista de Ciclos Escolares (para Gestión) ***
+    useEffect(() => {
+        // Solo carga si la vista de gestión de ciclos escolares está activa
+        if (!isSchoolCycleVisible) return;
+
+        loadCiclosEscolares();
+    }, [isSchoolCycleVisible]);
 
     
     // *** INTERRUPTOR #3: Guardar Nuevo Estudiante ***
@@ -499,6 +528,99 @@ const GestionEstudiantesPage = () => {
             return newSet;
         });
     };
+
+    // Funciones para manejo de ciclos escolares
+    const loadCiclosEscolares = async () => {
+        try {
+            setIsLoadingCycles(true);
+            const response = await apiClient.get('/ciclos/');
+            setCiclosEscolares(response.data);
+        } catch (error) {
+            console.error('Error loading ciclos escolares:', error);
+            setError('Error al cargar los ciclos escolares');
+            setTimeout(() => setError(''), 3000);
+        } finally {
+            setIsLoadingCycles(false);
+        }
+    };
+
+    const handleCreateCycle = async (cycleData) => {
+        try {
+            setIsCreatingCycle(true);
+            const response = await apiClient.post('/ciclos/', cycleData);
+            
+            setCiclosEscolares(prev => [...prev, response.data]);
+            setIsCreateCycleModalOpen(false);
+            setSuccess('Ciclo escolar creado correctamente');
+            setTimeout(() => setSuccess(''), 3000);
+        } catch (error) {
+            console.error('Error creating ciclo escolar:', error);
+            setError(error.response?.data?.detail || 'Error al crear el ciclo escolar');
+            setTimeout(() => setError(''), 3000);
+        } finally {
+            setIsCreatingCycle(false);
+        }
+    };
+
+    const handleEditCycle = async (id, cycleData) => {
+        try {
+            setIsEditingCycle(true);
+            const response = await apiClient.put(`/ciclos/${id}`, cycleData);
+            
+            setCiclosEscolares(prev => prev.map(cycle => 
+                cycle.id === id ? response.data : cycle
+            ));
+            setCycleToEdit(null);
+            setSuccess('Ciclo escolar actualizado correctamente');
+            setTimeout(() => setSuccess(''), 3000);
+        } catch (error) {
+            console.error('Error updating ciclo escolar:', error);
+            setError(error.response?.data?.detail || 'Error al actualizar el ciclo escolar');
+            setTimeout(() => setError(''), 3000);
+        } finally {
+            setIsEditingCycle(false);
+        }
+    };
+
+    const handleDeleteCycle = async () => {
+        if (!cycleToDelete) return;
+        
+        try {
+            setIsDeletingCycle(true);
+            await apiClient.delete(`/ciclos/${cycleToDelete.id}`);
+            
+            setCiclosEscolares(prev => prev.filter(cycle => cycle.id !== cycleToDelete.id));
+            setCycleToDelete(null);
+            setSuccess('Ciclo escolar eliminado correctamente');
+            setTimeout(() => setSuccess(''), 3000);
+        } catch (error) {
+            console.error('Error deleting ciclo escolar:', error);
+            setError(error.response?.data?.detail || 'Error al eliminar el ciclo escolar');
+            setTimeout(() => setError(''), 3000);
+            setCycleToDelete(null);
+        } finally {
+            setIsDeletingCycle(false);
+        }
+    };
+
+    const handleActivateCycle = async (cycleId) => {
+        try {
+            const response = await apiClient.post(`/ciclos/${cycleId}/activar`, {});
+            
+            // Actualizar la lista de ciclos escolares
+            setCiclosEscolares(prev => prev.map(cycle => ({
+                ...cycle,
+                activo: cycle.id === cycleId ? true : false
+            })));
+            
+            setSuccess('Ciclo escolar activado correctamente');
+            setTimeout(() => setSuccess(''), 3000);
+        } catch (error) {
+            console.error('Error activating ciclo escolar:', error);
+            setError(error.response?.data?.detail || 'Error al activar el ciclo escolar');
+            setTimeout(() => setError(''), 3000);
+        }
+    };
     // -----------------------------------------
 
     // Función para organizar grupos por semestre
@@ -516,7 +638,7 @@ const GestionEstudiantesPage = () => {
     };
 
     // Determina si CUALQUIER formulario/vista está activo
-    const formActive = isAddFormVisible || isLinkListViewVisible || isGroupManagementVisible;
+    const formActive = isAddFormVisible || isLinkListViewVisible || isGroupManagementVisible || isSchoolCycleVisible;
 
     return (
         <main className="dashboard-main">
@@ -543,6 +665,12 @@ const GestionEstudiantesPage = () => {
                 <div className={`action-trigger-card group-management-card ${formActive ? 'hidden' : ''}`} onClick={showGroupManagement}>
                     <Users size={64} className="group-icon" />
                     <span>Gestión de Grupos</span>
+                </div>
+
+                {/* Card/Button 4: Gestión de Ciclo Escolar */}
+                <div className={`action-trigger-card school-cycle-card ${formActive ? 'hidden' : ''}`} onClick={showSchoolCycleManagement}>
+                    <Calendar size={64} className="calendar-icon" />
+                    <span>Gestión de Ciclo Escolar</span>
                 </div>
 
                 {/* ----- FORMULARIO 1: AGREGAR ESTUDIANTE (Condicional) ----- */}
@@ -765,9 +893,160 @@ const GestionEstudiantesPage = () => {
                     </div>
                 )}
                 {/* --- FIN VISTA 3 --- */}
-            </div>
 
-            {/* --- MODAL PARA INGRESAR NFC (se muestra sobre todo) --- */}
+                {/* ----- VISTA 4: GESTIÓN DE CICLOS ESCOLARES (Condicional) ----- */}
+                {isSchoolCycleVisible && (
+                    <div className="cycle-management-wrapper">
+                        <div className="cycle-management-view card">
+                            <div className="form-header">
+                                <h2 className="card-title">Gestión de Ciclos Escolares</h2>
+                                <button onClick={hideSchoolCycleManagement} className="close-form-btn" title="Cerrar vista">
+                                    <XCircle size={24} />
+                                </button>
+                            </div>
+
+                            <div className="feature-description">
+                                <p>Administra los periodos académicos de tu institución. Solo un ciclo puede estar activo a la vez.</p>
+                            </div>
+
+                        {/* Mensaje de información */}
+                        {error && (
+                            <div className="form-feedback error">
+                                <AlertCircle size={18} />
+                                {error}
+                            </div>
+                        )}
+                        {success && (
+                            <div className="form-feedback success">
+                                <CheckCircle size={18} />
+                                {success}
+                            </div>
+                        )}
+
+                        {/* Lista de ciclos escolares existentes - SECCIÓN PRINCIPAL */}
+                        <div className="cycles-list-section main-section">
+                            <div className="section-header">
+                                <div className="title-group">
+                                    <h3 className="form-section-title">Ciclos Escolares</h3>
+                                    {ciclosEscolares.length > 0 && (
+                                        <span className="groups-counter">
+                                            {ciclosEscolares.length} ciclo{ciclosEscolares.length !== 1 ? 's' : ''}
+                                        </span>
+                                    )}
+                                </div>
+                                <button 
+                                    type="button"
+                                    className="action-button add-button compact"
+                                    onClick={() => setIsCreateCycleModalOpen(true)}
+                                    disabled={isLoadingCycles}
+                                    title="Crear nuevo ciclo escolar"
+                                >
+                                    <PlusCircle size={16} />
+                                    Nuevo Ciclo
+                                </button>
+                            </div>
+
+                            {isLoadingCycles ? (
+                                <div className="loading-message">Cargando ciclos escolares...</div>
+                            ) : ciclosEscolares.length === 0 ? (
+                                <div className="no-groups-message">
+                                    <Calendar size={80} className="placeholder-icon" />
+                                    <h4>No hay ciclos escolares creados aún</h4>
+                                    <p>Los ciclos escolares te permiten organizar tus periodos académicos por semestres o años</p>
+                                    <button 
+                                        className="action-button add-button"
+                                        onClick={() => setIsCreateCycleModalOpen(true)}
+                                    >
+                                        <PlusCircle size={16} />
+                                        Crear primer ciclo
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="cycles-grid">
+                                    {ciclosEscolares.map((ciclo) => (
+                                        <div 
+                                            key={ciclo.id} 
+                                            className={`cycle-card ${ciclo.activo ? 'active-cycle' : ''}`}
+                                        >
+                                            <div className="cycle-header">
+                                                <div className="cycle-info">
+                                                    <h4 className="cycle-name">{ciclo.nombre}</h4>
+                                                    {ciclo.activo && (
+                                                        <span className="active-badge">
+                                                            <CheckCircle size={12} />
+                                                            Activo
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="cycle-dates">
+                                                <div className="date-info">
+                                                    <span className="date-label">
+                                                        <CalendarDays size={10} />
+                                                        Inicio
+                                                    </span>
+                                                    <span className="date-value">
+                                                        {new Date(ciclo.fecha_inicio).toLocaleDateString('es-ES', {
+                                                            day: '2-digit',
+                                                            month: 'short'
+                                                        })}
+                                                    </span>
+                                                </div>
+                                                <div className="date-info">
+                                                    <span className="date-label">
+                                                        <Clock size={10} />
+                                                        Fin
+                                                    </span>
+                                                    <span className="date-value">
+                                                        {new Date(ciclo.fecha_fin).toLocaleDateString('es-ES', {
+                                                            day: '2-digit',
+                                                            month: 'short'
+                                                        })}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="cycle-actions">
+                                                {!ciclo.activo && (
+                                                    <button
+                                                        onClick={() => handleActivateCycle(ciclo.id)}
+                                                        className="action-button activate-button"
+                                                        title="Marcar como ciclo activo"
+                                                    >
+                                                        <CheckCircle size={16} />
+                                                        <span>Activar</span>
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => setCycleToEdit(ciclo)}
+                                                    className="action-button edit-button"
+                                                    title="Editar nombre y fechas"
+                                                    disabled={isEditingCycle}
+                                                >
+                                                    <Edit3 size={16} />
+                                                    <span>Editar</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => setCycleToDelete(ciclo)}
+                                                    className="action-button delete-button"
+                                                    title="Eliminar ciclo permanentemente"
+                                                    disabled={isDeletingCycle}
+                                                >
+                                                    <Trash2 size={16} />
+                                                    <span>Eliminar</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        </div>
+                    </div>
+                )}
+                {/* --- FIN VISTA 4 --- */}
+            </div>            {/* --- MODAL PARA INGRESAR NFC (se muestra sobre todo) --- */}
             <LinkNfcModal
                 isOpen={isLinkModalOpen}
                 onClose={closeLinkModal}
@@ -805,6 +1084,35 @@ const GestionEstudiantesPage = () => {
                 groupData={groupToDelete}
             />
             {/* --- FIN MODAL ELIMINAR GRUPO --- */}
+
+            {/* --- MODAL PARA CREAR CICLO ESCOLAR --- */}
+            <CreateCycleModal
+                isOpen={isCreateCycleModalOpen}
+                onClose={() => setIsCreateCycleModalOpen(false)}
+                onSubmit={handleCreateCycle}
+                isCreating={isCreatingCycle}
+            />
+            {/* --- FIN MODAL CREAR CICLO --- */}
+
+            {/* --- MODAL PARA EDITAR CICLO ESCOLAR --- */}
+            <EditCycleModal
+                isOpen={!!cycleToEdit}
+                onClose={() => setCycleToEdit(null)}
+                onSubmit={handleEditCycle}
+                isEditing={isEditingCycle}
+                cycleData={cycleToEdit}
+            />
+            {/* --- FIN MODAL EDITAR CICLO --- */}
+
+            {/* --- MODAL PARA ELIMINAR CICLO ESCOLAR --- */}
+            <DeleteCycleModal
+                isOpen={!!cycleToDelete}
+                onClose={() => setCycleToDelete(null)}
+                onConfirm={handleDeleteCycle}
+                isDeleting={isDeletingCycle}
+                cycleData={cycleToDelete}
+            />
+            {/* --- FIN MODAL ELIMINAR CICLO --- */}
         </main>
     );
 };
